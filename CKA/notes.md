@@ -209,3 +209,109 @@ So for the commands I showed in the previous video to work you must specify the 
     $ kubectl sacle --replicas=2 -f  new-replica-set.yaml 
 
     ```
+
+* Deployment 
+
+    **Tip**
+    As we might have seen already, it is a bit difficult to create and edit YAML files. Especially in the CLI. During the exam, you might find it difficult to copy and paste YAML files from browser to terminal. Using the kubectl run command can help in generating a YAML template. And sometimes, you can even get away with just the kubectl run command without having to create a YAML file at all. For example, if you were asked to create a pod or deployment with specific name and image you can simply run the kubectl run command.
+
+    ```bash 
+    Create an NGINX Pod
+
+    kubectl run nginx --image=nginx
+
+    Generate POD Manifest YAML file (-o yaml). Don't create it(--dry-run)
+
+    kubectl run nginx --image=nginx --dry-run=client -o yaml
+
+    Create a deployment
+
+    kubectl create deployment --image=nginx nginx
+
+    Generate Deployment YAML file (-o yaml). Don't create it(--dry-run)
+
+    kubectl create deployment --image=nginx nginx --dry-run=client -o yaml
+
+    Generate Deployment YAML file (-o yaml). Don’t create it(–dry-run) and save it to a file.
+
+    kubectl create deployment --image=nginx nginx --dry-run=client -o yaml > nginx-deployment.yaml
+
+    Make necessary changes to the file (for example, adding more replicas) and then create the deployment.
+
+    kubectl create -f nginx-deployment.yaml
+
+
+    OR
+
+    In k8s version 1.19+, we can specify the --replicas option to create a deployment with 4 replicas.
+
+    kubectl create deployment --image=nginx nginx --replicas=4 --dry-run=client -o yaml > nginx-deployment.yaml 
+
+    ```
+
+* Deployment Lab
+
+    ```bash
+    $ kubectl get deployment -o wide
+    $ kubectl describe deployment frontend-deployment
+    $ kubectl describe deployment frontend-deployment-cd6b557c-29npt
+    $ kubectl describe pod frontend-deployment-cd6b557c-29npt
+    $ ls
+    $ vi deployment-definition-1.yaml 
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+    name: deployment-1
+    spec:
+    replicas: 2
+    selector:
+        matchLabels:
+        name: busybox-pod
+    template:
+        metadata:
+        labels:
+            name: busybox-pod
+        spec:
+        containers:
+        - name: busybox-container
+            image: busybox
+            command:
+            - sh
+            - "-c"
+            - echo Hello Kubernetes! && sleep 3600
+
+    $ kubectl create -f deployment-definition-1.yaml 
+
+    $ kubectl create deployment --image=httpd:2.4-alpine httpd-frontend --dry-run=client -o yaml
+    $ kubectl create deployment --image=httpd:2.4-alpine httpd-frontend --dry-run=client -o yaml > httpd-deployment.yaml
+    $ cat httpd-deployment.yaml 
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+    creationTimestamp: null
+    labels:
+        app: httpd-frontend
+    name: httpd-frontend
+    spec:
+    replicas: 3
+    selector:
+        matchLabels:
+        app: httpd-frontend
+    strategy: {}
+    template:
+        metadata:
+        creationTimestamp: null
+        labels:
+            app: httpd-frontend
+        spec:
+        containers:
+        - image: httpd:2.4-alpine
+            name: httpd
+            resources: {}
+    status: {}
+                 
+    $ vi httpd-deployment.yaml 
+
+    $ kubectl create -f httpd-deployment.yaml 
+    ```
