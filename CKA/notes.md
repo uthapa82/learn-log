@@ -253,6 +253,7 @@ So for the commands I showed in the previous video to work you must specify the 
 
     ```bash
     $ kubectl get deployment -o wide
+    $ kubectl get rs 
     $ kubectl describe deployment frontend-deployment
     $ kubectl describe deployment frontend-deployment-cd6b557c-29npt
     $ kubectl describe pod frontend-deployment-cd6b557c-29npt
@@ -282,7 +283,8 @@ So for the commands I showed in the previous video to work you must specify the 
             - echo Hello Kubernetes! && sleep 3600
 
     $ kubectl create -f deployment-definition-1.yaml 
-
+    $ kubectl create deployment <name> --image=<image> --replicas=<number>
+    $ kubectl get deploy
     $ kubectl create deployment --image=httpd:2.4-alpine httpd-frontend --dry-run=client -o yaml
     $ kubectl create deployment --image=httpd:2.4-alpine httpd-frontend --dry-run=client -o yaml > httpd-deployment.yaml
     $ cat httpd-deployment.yaml 
@@ -314,4 +316,37 @@ So for the commands I showed in the previous video to work you must specify the 
     $ vi httpd-deployment.yaml 
 
     $ kubectl create -f httpd-deployment.yaml 
+    ```
+
+* Services 
+
+    ```bash
+        $ kubectl get services or svc 
+        NAME         TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+        kubernetes   ClusterIP   10.43.0.1    <none>        443/TCP   13m
+
+        $ kubectl describe service kubernetes 
+
+        $ kubectl get deployment
+
+        $ kubectl get deployment -o wide
+
+        $ ls
+        $ vi service-definition-1.yaml 
+            ---
+            apiVersion: v1
+            kind: Service
+            metadata:
+            name: webapp-service 
+            namespace: default
+            spec:
+            ports:
+            - nodePort: 30080
+                port: 8080
+                targetPort: 8080 
+            selector:
+                name: simple-webapp
+            type: NodePort
+
+        $ kubectl create -f service-definition-1.yaml 
     ```
