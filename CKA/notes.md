@@ -68,3 +68,144 @@ So for the commands I showed in the previous video to work you must specify the 
 ```
     kubectl exec etcd-master -n kube-system -- sh -c "ETCDCTL_API=3 etcdctl get / --prefix --keys-only --limit=10 --cacert /etc/kubernetes/pki/etcd/ca.crt --cert /etc/kubernetes/pki/etcd/server.crt  --key /etc/kubernetes/pki/etcd/server.key" 
 ```
+
+* Lab1
+
+    ```bash
+    $ kubectl run --help
+
+    # check the number of pods 
+    $ kubectl get pods
+
+    # create a new pod with the nginx image
+    $ kubectl run nginx-pod --image=nginx
+
+    # more details flag , check the node where the pods placed on 
+    $ kubectl get pods -o wide 
+
+    $ kubectl descibe pod <pod-name>
+
+    $ kubectl get pod webapp -o jsonpath='{.spec.containers[*].image}'
+
+    $ kubectl delete pod webapp
+
+    # option 1 of creating pod 
+    $ kubectl run redis --image=redis123 --dry-run=client -o yaml >> redis.yaml
+
+    $ vi sample.yaml 
+    $ cat sample.yaml 
+
+    apiVersion: v1
+    kind: Pod
+    metadata:
+    name: redis
+    labels:
+        app: redis
+    spec:
+    containers:
+    - name: redis
+        image: redis
+
+    $ kubectl apply -f sample.yaml 
+    $ kubectl get pods
+    ```
+
+* Replicaset 
+
+    ```bash
+    $ kubectl get pods
+
+    $ kubectl get replicaset
+
+    $ kubectl get replicaset -o wide
+    
+    $ kubectl describe replicaset new-replica-set
+
+    $ kubectl describe pod new-replica-set-712qw
+
+    $ kubectl delete pod new-replica-set-2md6q 
+
+    $ kubectl get pods
+    
+    $ kubectl explain replicaset
+
+    $ vi replicaset-definition-1.yaml 
+    apiVersion: apps/v1
+    kind: ReplicaSet
+    metadata:
+      name: replicaset-1
+    spec:
+      replicas: 2
+      selector:
+        matchLabels:
+          tier: frontend
+      template:
+        metadata:
+          labels:
+            tier: frontend
+        spec:
+          containers:
+          - name: nginx
+            image: nginx
+
+    $ kubectl get replicationcontrollers 
+
+    $ kubectl create -f replicaset-definition-1.yaml 
+
+    $ vi replicaset-definition-2.yaml 
+    apiVersion: apps/v1 ---> version need to match
+    kind: ReplicaSet
+    metadata:
+      name: replicaset-2
+    spec:
+      replicas: 2
+      selector:
+        matchLabels:
+          tier: frontend ---> labels need to match
+      template:
+        metadata:
+          labels:
+            tier: frontend ---> label need to match
+        spec:
+          containers:
+          - name: nginx
+            image: nginx
+    
+
+    $ kubectl create -f replicaset-definition-2.yaml 
+
+    $ kubectl get rs
+
+    $ kubectl delete replicaset replicaset-1 replicaset-2
+    $ kubectl delete replicaset replicaset-1
+    $ kubectl delete replicaset replicaset-2
+
+    $ ls
+
+    $ vi new-replica-set.yaml 
+
+    $ kubectl edit rs new-replica-set
+
+    $ kubectl get pods
+
+    $ kubectl delete pod name1 name 2 name3..
+
+    $ kubectl get pods
+
+    # method-1
+    $ kubectl scale rs new-replica-set --replicas=5
+
+    # method-2
+    $ kubectl edit rs new-replicaset --> change spec:--> replicas 
+
+    $ kubectl scale -replicas=5 -f new-replica-set.yaml 
+
+    $ kubectl scale --replicas=5 -f new-replica-set.yaml 
+
+    $ vi new-replica-set.yaml 
+    $ kubectl get pods
+    $ kubectl replace -f new-replica-set.yaml 
+
+    $ kubectl sacle --replicas=2 -f  new-replica-set.yaml 
+
+    ```
