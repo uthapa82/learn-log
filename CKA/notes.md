@@ -321,34 +321,34 @@ So for the commands I showed in the previous video to work you must specify the 
 * Services 
 
     ```bash
-        $ kubectl get services or svc 
-        NAME         TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
-        kubernetes   ClusterIP   10.43.0.1    <none>        443/TCP   13m
+    $ kubectl get services or svc 
+    NAME         TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+    kubernetes   ClusterIP   10.43.0.1    <none>        443/TCP   13m
 
-        $ kubectl describe service kubernetes 
+    $ kubectl describe service kubernetes 
 
-        $ kubectl get deployment
+    $ kubectl get deployment
 
-        $ kubectl get deployment -o wide
+    $ kubectl get deployment -o wide
 
-        $ ls
-        $ vi service-definition-1.yaml 
-            ---
-            apiVersion: v1
-            kind: Service
-            metadata:
-            name: webapp-service 
-            namespace: default
-            spec:
-            ports:
-            - nodePort: 30080
-                port: 8080
-                targetPort: 8080 
-            selector:
-                name: simple-webapp
-            type: NodePort
+    $ ls
+    $ vi service-definition-1.yaml 
+        ---
+        apiVersion: v1
+        kind: Service
+        metadata:
+        name: webapp-service 
+        namespace: default
+        spec:
+        ports:
+        - nodePort: 30080
+            port: 8080
+            targetPort: 8080 
+        selector:
+            name: simple-webapp
+        type: NodePort
 
-        $ kubectl create -f service-definition-1.yaml 
+    $ kubectl create -f service-definition-1.yaml 
     ```
 
 * Namespace 
