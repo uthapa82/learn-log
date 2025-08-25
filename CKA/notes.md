@@ -350,3 +350,39 @@ So for the commands I showed in the previous video to work you must specify the 
 
         $ kubectl create -f service-definition-1.yaml 
     ```
+
+* Namespace 
+
+    ```bash
+    $ kubectl get namespaces
+
+    $ kubectl get pods --namespace=research
+
+    $ kubectl run redis --image=redis --namespace=finance # -n=finance shortcut
+
+    $ kubectl get pod --namespace=finance
+
+    $ kubectl get namespaces 
+
+    $ kubectl get pods --all-namespaces | grep blue
+
+    $ kubectl describe pods blue
+
+    # dns for blue pod in dev/marketing namespace , If it's in same namespace 
+
+    kubectl get svs -n=marketing
+    db-service.dev.svc.cluster.local
+    db-service.marketing.svc.cluster.local
+
+    # to make the default namespace a s dev
+    $ kubectl config set-context $(kubectl config current-context) --namespace=dev
+
+    apiVersion: v1
+    kind: Namespace
+    metadata:
+      name: dev
+      labels:
+        app: myapp
+        type: front-end
+
+    ```
