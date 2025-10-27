@@ -98,13 +98,13 @@ So for the commands I showed in the previous video to work you must specify the 
     apiVersion: v1
     kind: Pod
     metadata:
-    name: redis
-    labels:
+      name: redis
+      labels:
         app: redis
     spec:
-    containers:
-    - name: redis
-        image: redis
+      containers:
+        - name: redis
+          image: redis
 
     $ kubectl apply -f sample.yaml 
     $ kubectl get pods
@@ -149,6 +149,8 @@ So for the commands I showed in the previous video to work you must specify the 
             image: nginx
 
     $ kubectl get replicationcontrollers 
+
+    # to find the issue with the yaml file we can create and read the error 
 
     $ kubectl create -f replicaset-definition-1.yaml 
 
@@ -206,7 +208,7 @@ So for the commands I showed in the previous video to work you must specify the 
     $ kubectl get pods
     $ kubectl replace -f new-replica-set.yaml 
 
-    $ kubectl sacle --replicas=2 -f  new-replica-set.yaml 
+    $ kubectl scale --replicas=2 -f  new-replica-set.yaml 
 
     ```
 
