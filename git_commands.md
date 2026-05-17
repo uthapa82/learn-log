@@ -232,3 +232,11 @@ Copy
 To write multiline commit messages, use the following:
 ```bash
 git commit -m "Title of the commit" -m "Detailed description of changes"
+
+* Mistakenly pushed the commit to all 
+
+    ```
+    git reflog
+    git reset --hard <hash>
+    git push --force origin main
+    ```

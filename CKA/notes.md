@@ -1,5 +1,183 @@
 ## Certified Kubernetes Administrator (CKA) 
 
+**Docker Refresher** 
+
+```bash
+$ docker run ubuntu
+$ docker ps 
+$ docker ps -a
+$ docker run kodekloud/simple-webapp
+$ docker run -d kodekloud/simple-webapp 
+$ docker attach name or id (a043d)
+
+# run for 100 seconds 
+$ docker run -d ubuntu sleep 100 
+
+$ docker run -it centos bash 
+# logs into the bash of container 
+
+# remove docker containers 
+$ docker rm container-name/id 
+
+$ docker images 
+
+# rmi for removing images 
+$ docker rmi <image>
+
+# count total images 
+$ docker images -q | wc -l 
+
+# tag 
+$ docker run redis:latest
+
+# i interactive docker run -i 
+# -t sduo terminal , attach to terminal 
+docker run -it 
+
+docker run -p 80:5000 kodekloud/webapp
+
+# map data from docker container to docker host , dockerHost:dockerContainer 
+docker run -v /opt/datadir:/var/lib/mysql mysql 
+
+# gives all the information 
+docker inspect <name> 
+
+# Container logs 
+docker logs <containerID/Name>
+
+# persist configuration data, we need to map a volume 
+mkdir my-jenkins-data 
+docker run -p 8080:8080 -v /root/my-jenkins-data:/var/jenkins_home -u root jenkins
+
+#Run an instance of kodekloud/simple-webapp:blue and name the container blue-app, mapping port 8080 on the container to port 38282 on the host  -o HOST_Port:Conatiner_Port
+docker run -p 38282:8080 --name blue-app kodekloud/simple-webapp:blue
+
+docker history name test/simple-test-app
+
+# create from dockerfile , failure cached 
+docker build Docerfile -t test/my-test-app
+docker build .
+
+docker login 
+# with tag 
+docker build . -t account-name/my-simple-webapp:lite
+
+```
+
+- Creating own image 
+    1. OS -Ubuntu
+    2. Update apt repo - `apt-get update`
+    3. Install dependencies using apt `apt-get install python`
+    4. Install python dependencies using pip `pip install flask flask-mysql`
+    5. Copy source code to /opt folder `copy . /opt/source-code`
+    6. Run the web server using "flask" command `ENTRYPOINT FLAS_APP=/opt/source-code/app.py flask run`
+
+    ```bash    
+    docker build dockerfile -t test/my-custom-app
+    docker push test/my-custom-app
+    ```
+
+- Docker file : ISTRUCTION ARGUMENT eg. FROM Ubuntu 
+- Layered Architecture 
+
+
+```bash
+    $ docker ==> $ nerdctl 
+    $ docker ps --filter ancestor=ubuntu --format '{{.ID}}'
+    $ docker exec container-id sh -c 'command eg. echo "This is the file" >> /root/learning.txt'0
+    $ docker run --name redis redis:alpine  ==> $ nerdctl run --name redis redis:alpine 
+    $ docker run --name webserver -p 80:80 -d nginx ==> $ nerdctl run ---name webserver -p 80:80 -d nginx 
+```
+
+* Run docker without sudo
+
+    ```bash
+        bash# Add your user to the docker group
+        sudo usermod -aG docker $USER
+
+        # Apply the group change immediately (no logout needed)
+        newgrp docker
+    ```
+
+* Environment Variables 
+
+    ```bash
+        docker run -e APP_COLOR=blue simple-webapp-color
+        docker run -e APP_COLOR=green simple-webapp-color
+        # example 
+        docker run -e APP_COLOR=blue -p 38282:8080 --name blue-app kodekloud/simple-webapp
+        
+    ```
+
+* Commands vs Entrypoint 
+    - defines default command `CMD ["nginx"]` or `CMD ["mysqld"]`
+
+    - append the command `docker run ubuntu [COMMAND]`
+
+    - `docker run --entrypoint sleep2.0 ubuntu-sleeper 10`
+
+* Docker Compose 
+    - `docker run --link` to link services 
+
+    - `docker compose up`
+
+    - sample file 
+
+        ```
+        version: "3"
+
+        services:
+        redis:
+            image: redis:alpine
+
+        clickcounter:
+            image: kodekloud/click-counter
+            ports:
+            - "8085:5000"
+        ```
+
+* Docker Engine / Docker Host 
+    - Docker Deamon -> REST API -> Docker CLI 
+    - Docker Deamon: Background process that manages Docker objects such as images, contaniners, volumes etc.
+    - Docker CLI can be on same host or different, incase of remove host `docker -H=remote-docker-engine:2375 run nginx`
+
+    - Namespace interProcess, Mount, Unix Timesharnig, Process ID, Network
+
+    - Docker uses cgroups or control groups to restrict the amount of hardware resources allocated to each container.
+        `docker run --cpus=.5 ubuntu` ==> ensures container does not take up more than 50 % of the host CPU at any given time 
+        
+        `docker run --memory=100m ubuntu` ==> limits the memory of container can use to 100 MB
+
+* Docker Storage / File System
+    - When we install docker in a system or host it creates following file structure 
+
+        ```text
+        /var/lib/docker
+        ├── aufs
+        ├── containers
+        ├── images
+        └── volumes
+        ```
+    - Layered architecture from top to bottom dockerfile, reuses the cached layers from another image or docker files 
+    - Read Write Layer (container layer) above Read only (image layers)
+    - COPY-ON-WRITE 
+    
+    - `docker run -v data_volume(docker on host):/var/lib/mysql (container volume)` old way, new way --> `docker run \ --mount type=bind, source=/data/mysql, target=/var/lib/mysql mysql`
+     
+    - volume mount and bind mount 
+
+    - Storage drivers, automatically choosen based on the Operating System
+        ```text
+        - AUFS
+        - ZFS
+        - BTRFS
+        - Device Mapper
+        - Overlay
+        - Overlay2
+        ```
+---
+**Kubernetes**
+
 ```bash
     $ docker ==> $ nerdctl 
     $ docker run --name redis redis:alpine  ==> $ nerdctl run --name redis redis:alpine 
