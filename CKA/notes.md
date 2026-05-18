@@ -162,7 +162,7 @@ docker build . -t account-name/my-simple-webapp:lite
     - Read Write Layer (container layer) above Read only (image layers)
     - COPY-ON-WRITE 
     
-    - `docker run -v data_volume(docker on host):/var/lib/mysql (container volume)` old way, new way --> `docker run \ --mount type=bind, source=/data/mysql, target=/var/lib/mysql mysql`
+    - `docker run -v data_volume(docker Engine):/var/lib/mysql (container volume)` old way, new way --> `docker run \ --mount type=bind, source=/data/mysql, target=/var/lib/mysql mysql`
      
     - volume mount and bind mount 
 
@@ -175,18 +175,155 @@ docker build . -t account-name/my-simple-webapp:lite
         - Overlay
         - Overlay2
         ```
+    
+        ```bash
+        # sample command 
+        docker exec mysql-db mysql -pdb_secret -e 'use foo; select * from myTable'
+        ```
+* Docker Networking 
+    - Creates three networks automatically : bridge, none , host 
+    - Bridge : default `docker run ubuntu`
+    - None: `docker run ubuntu --network=none`
+    - host: `docker run ubuntu --network=host`
+    
+    ```bash
+    docker network create \
+    --driver bridge \
+    --subnet 182.18.0.0/16 custom-isolated-network
+    
+    docker network ls 
+
+    docker inspect --> check NetworkSettings
+
+    docker network create \
+    --driver bridge \
+    --subnet 182.18.0.0/24 \
+    --gateway 182.18.0.1 \
+    wp-mysql-network
+
+    ~ ➜  docker run -d \                                                                                     
+    > -p 38080:8080 \
+    > -e DB_Host=mysql-db \
+    > -e DB_Password=db_pass123 \
+    > --network=wp-mysql-network \
+    > --link mysql-db \
+    > --name webapp kodekloud/simple-webapp-mysql 
+    ```
+
+    - Embedded DNS, build in DNS resolver (runs at 127.0.0.11)
+    - How does Docker implement networking, how are the containers isolated within the host ?
+        - Docker uses network namespaces that create a separate namespace for each container. 
+        - It then uses virtual Ethernet pairs to connect containers together.
+
+* Docker Registry 
+    - Central repository of all images 
+    - image:docker.io/ library    / nginx 
+            Registry  user/Account  Image/Repository 
+
+    ```bash
+    # private registry 
+    $ docker login private-registry.io
+
+    $ docker run private-registry.io/apps/internal-app
+
+    # deploy private registry 
+    $ docker run -d -p 5000:5000 --name registry registry:2
+
+    # how to push the custom image 
+    $ docker image tag my-image localhost:5000/my-image 
+
+    $ docker push localhost:5000/my-image 
+
+    $ docker pull 192.168.56.100:5000/my-image 
+    
+    # Examples 
+    $ docker run -d -p 5000:5000 --restart always --name my-registry registry:2
+
+    $ docker pull nginx:latest 
+    $ docker image tag nginx:latest localhost:5000/nginx:latest
+    $ docker push localhost:5000/nginx:latest 
+
+    # To check the list of images pushed , use 
+    $ curl -X GET localhost:5000/v2/_catalog
+
+    # remove all the dangling images locally 
+    $ docker image prune -a 
+    $ docker image ls 
+
+    $ docker pull localhost:5000/nginx 
+
+    ```
+
+* Container Orchestration
+    - Tool that consists of a set of tools and scripts that can host containers in a production environment.
+    - Typically, a container orchestration solution consists of multiple docker hosts that can host containers.
+    - Allows us to deply hundreds or thousands of instances of our application with single command.
+    - Automatically scale the instances when users increase and scale down the number of instances.
+    - Also provides advanced networking between the containers across different hosts.
+    `docker service create --replicas=100 nodejs`
+
+    - Also provide support for sharing storage between the hosts as well as support for configuration management and security within the cluster.
+    - Example : **Docker Swarm, Kubernetes** etc 
+
+* Docker Swarm 
+    - Combine multiple machines together into a single cluster.
+    - Will take care of distrubuting the services or application instances into separate hosts for high availability and for load balancing across differenct systems.
+    - Swarm Manager  and other workers 
+    - `docker swarm init` worker: `docker swarm join --token <token>`
+
+
 ---
 **Kubernetes**
 
-```bash
+- Can run 1000 instances of the same application with a single command.
+    ```bash
+    $ kubectl run --replicas=1000 my-web-server
+
+    # scale 
+    $ kubectl scale --replicas=2000 my-web-server 
+
+    # rolling based on demand UP or Down 
+    $ kubectl rolling-update my-web-server --image=web-server:2
+
+    # rollback 
+    $ kubectl rolling-update my-web-server --rollback 
+
+    ```
+
+- Relationship between Docker and Kubernetes ?
+    Kubernetes uses Docker hosts to host applications in the form of Docker Containers.
+
+- Node is a worker machine where containers will be launched by Kubernetes.
+
+- A cluster is a set of nodes grouped together, this way even if one node fails, we have our application still accessible from the other nodes.
+
+-  The Master is a node with the kubernetes control plane components installed. The master watches over the nodes in the cluster and is responsible for the actual orchestration of containers on the worker nodes.
+
+- When we install Kubernetes in a system we are installing following components:
+    - API Serve: acts as the front end for kubernetes, the users, management devices, command line interfaces, all talk to the API server to interact with K8s cluster.
+
+    - etcd server: distributed, reliable Key:value store used by Kuberenetes to store all data managed by it.
+    
+    - Scheduler: responsible for distributing work or containers across multiple nodes. Looks for newely created containers and assigns them to nodes.
+
+    - Controllers: the brain behind orchestration, responsible for noticing and responding when nodes, containers, or endpoints go down. Makes decision to bring up new containers in such cases, the container runtime is the underlying software that is used to run containers. (In our case docker)
+
+    - Kubelet: agent that runs on each node in the cluster. Agent is responsible for making sure that the containers are running on the nodes as expected.
+
+- The kubectl tool is the Kubernetes CLI, which is used to deploy and manage application on a Kubernetes cluster to get cluster-related information, to get the status of the nodes in the cluster, and many more other things.
+
+- `kubectl run hello-minikube` command is used to deploy an application on the cluster, `kubectl cluster-info` is used to view information about the cluster, `kubectl get nodes` list all the nodes part of the cluster.
+ 
+
+    ```bash
     $ docker ==> $ nerdctl 
     $ docker run --name redis redis:alpine  ==> $ nerdctl run --name redis redis:alpine 
     $ docker run --name webserver -p 80:80 -d nginx ==> $ nerdctl run ---name webserver -p 80:80 -d nginx 
-```
+    ```
 
 * CLI - crictl (cry control)
 
-```bash
+    ```bash
     $ crictl 
     $ crictl pull busybox 
     $ crictl images 
@@ -194,7 +331,7 @@ docker build . -t account-name/my-simple-webapp:lite
     $ crictl exec -i -t xxxxxxxxxxxxxxxxx ls 
     $ crictl logs xxxxxxxxxxxxxxxxx
     $ crictl pods 
-```
+    ```
 * default client that comes with ETCD is the ETCDCTL client. 
 
 * create  key value pair `./etcdctl set/put key1 value1 `
@@ -208,22 +345,22 @@ ETCDCTL can interact with ETCD Server using 2 API versions - Version 2 and Versi
 
 For example ETCDCTL version 2 supports the following commands:
 
-```
+    ```bash
     etcdctl backup
     etcdctl cluster-health
     etcdctl mk
     etcdctl mkdir
     etcdctl set
-```
+    ```
 
 Whereas the commands are different in version 3
 
-```
+    ```bash
     etcdctl snapshot save 
     etcdctl endpoint health
     etcdctl get
     etcdctl put
-```
+    ```
 
 To set the right version of API set the environment variable ETCDCTL_API command
 
@@ -235,17 +372,17 @@ When API version is not set, it is assumed to be set to version 2. And version 3
 
 Apart from that, you must also specify path to certificate files so that ETCDCTL can authenticate to the ETCD API Server. The certificate files are available in the etcd-master at the following path. We discuss more about certificates in the security section of this course. So don't worry if this looks complex:
 
-```
+    ```
     --cacert /etc/kubernetes/pki/etcd/ca.crt     
     --cert /etc/kubernetes/pki/etcd/server.crt     
     --key /etc/kubernetes/pki/etcd/server.key
-```
+    ```
 
 So for the commands I showed in the previous video to work you must specify the ETCDCTL API version and path to certificate files. Below is the final form:
 
-```
+    ```
     kubectl exec etcd-master -n kube-system -- sh -c "ETCDCTL_API=3 etcdctl get / --prefix --keys-only --limit=10 --cacert /etc/kubernetes/pki/etcd/ca.crt --cert /etc/kubernetes/pki/etcd/server.crt  --key /etc/kubernetes/pki/etcd/server.key" 
-```
+    ```
 
 * Lab1
 
