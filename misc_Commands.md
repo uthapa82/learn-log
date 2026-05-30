@@ -1,6 +1,6 @@
 **uv package manager**
 
-    ```bash
+```bash
     # Initialize the project, default --app 
     $ uv init 
     or 
@@ -41,7 +41,7 @@
     $ uv tool install ruff 
     $ which ruff 
     $ ruff check 
-    
+
     # remove a tool
     $ uv tool uninstall ruff 
 
@@ -53,8 +53,7 @@
     $ uv tool list 
 
     $ uv tool upgrade --all 
-    
-    ```
+```
 
 * Smart global caching system 
 
