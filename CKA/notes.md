@@ -912,7 +912,6 @@ So for the commands I showed in the previous video to work you must specify the 
         ![alt text](image-1.png)
 
 
-
     ```bash 
     ---
     apiVersion: apps/v1
@@ -943,3 +942,121 @@ So for the commands I showed in the previous video to work you must specify the 
                     values:
                     - blue
     ```
+
+* Node Affinity vs Taints and Tolerations
+* Requirements 
+    - Resource Request
+    - Resource Limit 
+    - Default Behavior : No CPU/MEM resource limit set 
+
+    ```bash 
+    apiVersion: v1
+    kind: Pod 
+    metadata: 
+        name: simple-webapp-color
+        labels:
+          name: simple-webapp-color
+    spec:
+      containers:
+      - name: simple-webapp-color
+        image: simple-webapp-color 
+        ports:
+          - containerPort: 8080
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: 2
+          limits:
+            memory: "2Gi"
+            cpu: 2
+    ```
+    
+    - LimitRange 
+
+    ```bash 
+    apiVersion: v1
+    kind: LimitRange
+    metadata:
+      name: cpu-resource-constraint or memory
+    spec:
+      limits:
+      - default:
+          cpu: 500m
+        defaultRequest:
+          cpu: 500m
+        max:
+          cpu: "1"
+        min:
+          cpu: 100m
+        type: Container
+    ```
+
+    ![alt text](image-2.png)
+
+    - Resource Quotas at namespace level 
+    
+    ```bash
+    apiVersion: v1
+    kind: ResourceQuota
+    metadata:
+      name: my-resource-quota 
+    spec:
+      hard:
+        requests.cpu: 4
+        requests.memory: 4Gi
+        limits.cpu: 10
+        limits.memory: 10Gi
+    ```
+
+    Notes:
+    Edit a POD
+
+    Remember, you CANNOT edit specifications of an existing POD other than the below.
+
+        spec.containers[*].image
+
+        spec.initContainers[*].image
+
+        spec.activeDeadlineSeconds
+
+        spec.tolerations
+
+    For example you cannot edit the environment variables, service accounts, resource limits (all of which we will discuss later) of a running pod. But if you really want to, you have 2 options:
+
+    1. Run the `kubectl edit pod <pod name> ` command.  This will open the pod specification in an editor (vi editor). Then edit the required properties. When you try to save it, you will be denied. This is because you are attempting to edit a field on the pod that is not editable.
+
+    A copy of the file with your changes is saved in a temporary location as shown above.
+
+    You can then delete the existing pod by running the command:
+
+    `kubectl delete pod webapp`
+
+
+    Then create a new pod with your changes using the temporary file
+
+    `kubectl create -f /tmp/kubectl-edit-ccvrq.yaml`
+
+
+    2. The second option is to extract the pod definition in YAML format to a file using the command
+
+    `kubectl get pod webapp -o yaml > my-new-pod.yaml`
+
+    Then make the changes to the exported file using an editor (vi editor). Save the changes
+
+    `vi my-new-pod.yaml`
+
+    Then delete the existing pod
+
+    `kubectl delete pod webapp`
+
+    Then create a new pod with the edited file
+
+    `kubectl create -f my-new-pod.yaml`
+
+
+    Edit Deployments
+
+    With Deployments you can easily edit any field/property of the POD template. Since the pod template is a child of the deployment specification,  with every change the deployment will automatically delete and create a new pod with the new changes. So if you are asked to edit a property of a POD part of a deployment you may do that simply by running the command
+
+    `kubectl edit deployment my-deployment `
+    
