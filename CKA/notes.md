@@ -271,7 +271,7 @@ docker build . -t account-name/my-simple-webapp:lite
     - Swarm Manager  and other workers 
     - `docker swarm init` worker: `docker swarm join --token <token>`
 
-
+************************************************************************************************************
 ---
 **Kubernetes**
 
@@ -423,6 +423,9 @@ So for the commands I showed in the previous video to work you must specify the 
 
     $ kubectl apply -f sample.yaml 
     $ kubectl get pods
+
+    # substitue 
+    $ sed -i 's/redis123/redis/' pod-definition.yaml
     ```
 
 * Replicaset 
@@ -515,7 +518,7 @@ So for the commands I showed in the previous video to work you must specify the 
     # method-2
     $ kubectl edit rs new-replicaset --> change spec:--> replicas 
 
-    $ kubectl scale -replicas=5 -f new-replica-set.yaml 
+    $ kubectl scale --replicas=5 -f new-replica-set.yaml 
 
     $ kubectl scale --replicas=5 -f new-replica-set.yaml 
 
@@ -533,27 +536,28 @@ So for the commands I showed in the previous video to work you must specify the 
     As we might have seen already, it is a bit difficult to create and edit YAML files. Especially in the CLI. During the exam, you might find it difficult to copy and paste YAML files from browser to terminal. Using the kubectl run command can help in generating a YAML template. And sometimes, you can even get away with just the kubectl run command without having to create a YAML file at all. For example, if you were asked to create a pod or deployment with specific name and image you can simply run the kubectl run command.
 
     ```bash 
-    Create an NGINX Pod
+    
+    # Create an NGINX Pod
 
     kubectl run nginx --image=nginx
 
-    Generate POD Manifest YAML file (-o yaml). Don't create it(--dry-run)
+    # Generate POD Manifest YAML file (-o yaml). Don't create it(--dry-run)
 
     kubectl run nginx --image=nginx --dry-run=client -o yaml
 
-    Create a deployment
+    # Create a deployment
 
     kubectl create deployment --image=nginx nginx
 
-    Generate Deployment YAML file (-o yaml). Don't create it(--dry-run)
+    # Generate Deployment YAML file (-o yaml). Don't create it(--dry-run)
 
     kubectl create deployment --image=nginx nginx --dry-run=client -o yaml
 
-    Generate Deployment YAML file (-o yaml). Don’t create it(–dry-run) and save it to a file.
+    # Generate Deployment YAML file (-o yaml). Don’t create it(–dry-run) and save it to a file.
 
     kubectl create deployment --image=nginx nginx --dry-run=client -o yaml > nginx-deployment.yaml
 
-    Make necessary changes to the file (for example, adding more replicas) and then create the deployment.
+    # Make necessary changes to the file (for example, adding more replicas) and then create the deployment.
 
     kubectl create -f nginx-deployment.yaml
 
@@ -673,14 +677,15 @@ So for the commands I showed in the previous video to work you must specify the 
     ```bash
     $ kubectl get namespaces
 
-    $ kubectl get pods --namespace=research
+    $ kubectl get pods --namespace=research (or --n as short)
 
     $ kubectl run redis --image=redis --namespace=finance # -n=finance shortcut
 
     $ kubectl get pod --namespace=finance
 
-    $ kubectl get namespaces 
+    $ kubectl get namespaces (or ns as short)
 
+    $ kubectl get pods -A (same as --all-namespaces)
     $ kubectl get pods --all-namespaces | grep blue
 
     $ kubectl describe pods blue
@@ -702,4 +707,239 @@ So for the commands I showed in the previous video to work you must specify the 
         app: myapp
         type: front-end
 
+    # change the default namespace 
+    kubectl config set-context $(kubectl config current-context) --namespace=dev 
+
+    kubectl get pods --all-namespaces 
+
+    # Resource quota 
+    apiVersion: v1
+    kind: ResourceQuota
+    metadata:
+      name: compute-quota
+      namespace: dev
+    
+    spec:
+      hard:
+        pods: "10"
+        requests.cpu: "4"
+        requests.memory: 5Gi
+        limits.cpu: "10"
+        limits.memory: 10Gi
+
+    # using expose flag in kubectl run command 
+    $ kubectl run httpd --image=httpd:alpine --port=80 --expose
+    ```
+
+* Imperative vs declartive 
+    Infrastructure as Code (IaC)
+    - Imperative: set of instructions, provision a vm with name, install software on it , .... (in short what is required and how to do it)
+
+    - Declaritive approach: (ansible/terraform)
+    VM Name:
+    Package: nginx
+    Port: 8080
+    Path:/var/www/nginx
+    Code:GIT Repo-X
+
+    - In kuberenetes imperative is using commands like `kubectl run --image=nginx nginx` , create expose, set image, scale deployment, kubectl delete -f nginx.yaml etc 
+
+    - Declarative: kubectl apply -f nginx.yaml, look at existing configuration and what need to be updated or changed 
+
+        ![alt text](k8s-kubernetes.png)
+
+    ```bash
+    kubectl edit pod myapp-pod --> are not recorded anywhere 
+    kubectl replace -f nginx.yaml
+    kubectl replace --force -f nginx.yaml 
+    
+    # declarative - will check automatically for conflicts and configs errors
+    kubectl apply -f nginx.yaml 
+    kubectl apply -f /path/to/config-files 
+    ```
+
+    *Tips**
+    ```bash
+    # Service
+    # Create a Service named redis-service of type ClusterIP to expose pod redis on port 6379
+
+    $ kubectl expose pod redis --port=6379 --name redis-service --dry-run=client -o yaml
+
+    # (This will automatically use the pod's labels as selectors) Or
+
+    $ kubectl create service clusterip redis --tcp=6379:6379 --dry-run=client -o yaml 
+
+    # (This will not use the pods labels as selectors, instead it will assume selectors as app=redis. You cannot pass in selectors as an option. So it does not work very well if your pod has a different label set. So generate the file and modify the selectors before creating the service)
+
+
+    # Create a Service named nginx of type NodePort to expose pod nginx's port 80 on port 30080 on the nodes:
+
+    $ kubectl expose pod nginx --type=NodePort --port=80 --name=nginx-service --dry-run=client -o yaml
+
+    # (This will automatically use the pod's labels as selectors, but you cannot specify the node port. You have to generate a definition file and then add the node port in manually before creating the service with the pod.)
+
+    # Or
+
+    $ kubectl create service nodeport nginx --tcp=80:80 --node-port=30080 --dry-run=client -o yaml
+
+    # (This will not use the pods labels as selectors)
+
+    # Both the above commands have their own challenges. While one of it cannot accept a selector the other cannot accept a node port. I would recommend going with the kubectl expose command. If you need to specify a node port, generate a definition file using the same command and manually input the nodeport before creating the service.
+    ```  
+
+*  kubectl explain command 
+    - api-resources 
+    - kubectl api-resources 
+    - kubectl explain pods 
+    - kubectl explain pods.spec
+    - kubectl explain pods --recursive 
+
+* kubectl apply 
+    - Uses Local file , last applied configuration and kubernetes (live object configuration) in considerations 
+    - last applied configuration : stored in Live object configuration as annotations 
+
+**Section 3 Scheduling**
+
+* define nodeName: in spec: section 
+
+    ``bash
+    $ kubectl get pods -n kube-system 
+
+    # replace the old pod and create with updated nginx.yaml file 
+    $ Kubectl replace --force -f nginx.yaml 
+
+    $ kubectl get pods --watch 
+
+    # labels 
+    metadata:
+      name: 
+      labels:
+        app:
+        Function:
+    
+    $ kubectl get pods --selector app=App1
+
+    $ kubectl get all --selector env=prod --no-headers | wc -l
+    ```
+
+* Taints and Tolerations 
+    - Person-> Node 
+    - Pods -> Bugs 
+    - Taints are set on Nodes, Tolerations are set on Pods
+
+    ```bash
+    # taint-effect -> what happens to PODs that do not tolerate this taint 
+    # NoSchedule: Pods will not be scheduled on Node
+    # PreferNoSchedule : System will try to avoid to put in Node but not guarentee 
+    # NoExecute: New Pods will not be schedule on Node, an existing will be evicted if 
+    # they don't tolerate taint 
+
+    $ kubectl taint nodes node-name key=value:taint-effect
+    $ kubectl taint nodes node1 app=myapp:NoSchedule 
+
+    $ kubectl taint nodes node1 app=blue:NoSchedule 
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: myapp-pod
+      spec:
+        containers:
+        - name: nginx-container
+          image: nginx
+        tolerations:
+        - key: "app"
+          operator: "Equal"
+          value: "blue"
+          effect: "NoSchedule"
+    ```
+
+    - Best Practice not deploy application workloads in master server
+    `kubectl describe node kubemaster | grep Taint`
+
+    - To untaint the node 
+    `kubectl taint nodes controlplane node-role.kubernetes.io/control-plane:NoSchedule-`
+
+
+*  Node Selectors 
+    - under spec section nodeSelector: --> size: Large (get the value from labels)
+    - Label nodes 
+        `kubectl label nodes <node-name> <label-key>=<label-value> `
+
+    - Limitations: varying sizes nodes like large, medium, small etc 'or' 'not' not possible 
+
+* Node Affinity 
+    - spec --> affinity and nodeAffinity
+
+        ![alt text](image.png)
+
+    ```bash 
+    - matchExpressions:
+      - key: size
+        operator: NotIn
+        values:
+        - Small
+        - Medium
+
+     - key: size
+       operator: Exists
+
+    $ kubectl edit deployment <name>
+    ```
+
+    - lab 
+    - The type of node affinity defines the behavior of the scheduler with respect to node affinity and the stages in the lifecycle of the pod.
+    - Two types of nodeAffinity available 
+        - requiredDuringSchedulingIgnoredDuringExecution
+        - preferredDuringSchedulingIgnoredDuringExecution
+
+        Planned:
+        - requiredDuringSchedulingRequiredExecution 
+
+        DuringScheduling:
+        the state where a pod doesnot exist and is created for the first time. We have no doubt that when a pod is first created, the affinity rules specified are considered to place the pods on right node.
+
+        What if the nodes with matching labels are not available ?
+        For example, we forgot to label the node as large. That is where the type of node affinity used comes into play. If we select the required type, which is the first one, the scheduler will mandate that the pod be placed on a node with the given affinity rules. If it cannot find one, the pod will not be scheduled.
+        This type will be used in cases where the placement of the pod is crucial.
+        If a matching node does not exist the pod will bot be scheduled.
+
+        Let's say the pod placement is less important than running the workload itself.In that case we could set it to preferred. And in cases where a matching node is not found, the scheduler will simply ignore node affinity rules and place the pod on any available node. This is a way of telling the scheduler, hey tey your best to place the pod on matching node, but if you really cannot find one, just place it anywhere.
+
+        The second part of the propert or the other state is during execution. During execution is the state where a pod has been running, and a change is made in the environment that affects node affinity such as change in the label of a node. For example, an administrator removed the label we set earlier called size equals large from the node
+        What would happen to the pods that are running on the node ? 
+        The two types of node affinity available today has this value set to ignored which means pods will continue to run and any changes in node affinity will not impact them once they are scheduled. 
+        
+        ![alt text](image-1.png)
+
+
+
+    ```bash 
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+    name: blue
+    spec:
+    replicas: 3
+    selector:
+        matchLabels:
+        run: nginx
+    template:
+        metadata:
+        labels:
+            run: nginx
+        spec:
+        containers:
+        - image: nginx
+            imagePullPolicy: Always
+            name: nginx
+        affinity:            # affinity rules added from here
+            nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                - matchExpressions:
+                - key: color
+                    operator: In
+                    values:
+                    - blue
     ```
