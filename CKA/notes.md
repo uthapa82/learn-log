@@ -1025,7 +1025,7 @@ So for the commands I showed in the previous video to work you must specify the 
 
     1. Run the `kubectl edit pod <pod name> ` command.  This will open the pod specification in an editor (vi editor). Then edit the required properties. When you try to save it, you will be denied. This is because you are attempting to edit a field on the pod that is not editable.
 
-    A copy of the file with your changes is saved in a temporary location as shown above.
+    A copy of the file with your changes is saved in a temporary location as shown above. `/tmp/kubectl-edit-ccvrq.yaml`
 
     You can then delete the existing pod by running the command:
 
@@ -1059,4 +1059,34 @@ So for the commands I showed in the previous video to work you must specify the 
     With Deployments you can easily edit any field/property of the POD template. Since the pod template is a child of the deployment specification,  with every change the deployment will automatically delete and create a new pod with the new changes. So if you are asked to edit a property of a POD part of a deployment you may do that simply by running the command
 
     `kubectl edit deployment my-deployment `
-    
+
+    `kubectl replace --force -f /tmp/file.yaml`
+
+* DaemonSets 
+    - uses Monitoring solution and logs viewer
+    - worker node component required on every node is kube-proxy , that is one good use case of DaemonSets
+    - Another use case is networking solution like **calico** requires an agent to be deployed on each node in cluster
+
+    ```bash
+    apiVersion: apps/v1
+    kind: DaemonSet
+    metadata:
+      name: monitoring-daemon 
+    spec:
+      selector:
+        matchLabels:
+          app: monitoring-agent
+      template:
+        metadata:
+          labels:
+            app: monitoring-agent
+        spec:
+          containers:
+          - name: monitoring-agent 
+            image: monitoring-agent 
+    ```
+
+    `kubectl describe daemonsets or ds <name> -n <namespace>`
+
+    `kubectl get ds -n <name>`
+* 
