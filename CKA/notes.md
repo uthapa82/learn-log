@@ -1141,5 +1141,59 @@ So for the commands I showed in the previous video to work you must specify the 
         `kubectl apply -f your-pod-file.yaml`
 
 
+* Priorities 
+    - define using range of number high as 1B low as -2B (apps/workloads deployed as apps )
+    - For internal system critical pods (like kubernetes control node pods) 
+    - `kubectl get priorityclass`
+    
+        ```bash
+        apiVersion: scheduling.k8s.io/v1
+        kind: PriorityClass
+        metadata:
+          name: high-priority
+        value: 1000000000
+        description: "Priority class for mission critical pods"
+        preemptionPolicy: PreemptLowerPriority (never- pods make other pods wait to be scheduled)
+        
+        # now in pod definition 
+        spec:
+          containers:
+            ..
+            ....
+          priorityClassName: high-priority
+        ```
 
+    - `kubectl describe priorityclass system-node-critical`
+    
+    - compare the priority classes on both pods using `kubectl get pods -o custom-columns="NAME:.metadata.name,PRIORITY:.spec.priorityClassName"`
+
+    - Extract yaml file from existing pod 
+    
+        ```bash
+        kubectl get pod critical-app -o yaml > critical-app.yaml
+
+        # critical-app.yaml
+        apiVersion: v1
+        kind: Pod
+        metadata:
+        ...
+        name: critical-app
+        ...
+        spec:
+        containers:
+        - image: nginx
+            imagePullPolicy: Always
+            name: critical-container
+            ...
+        dnsPolicy: ClusterFirst
+        priorityClassName: high-priority   # Add the high-priority class
+        enableServiceLinks: true
+        preemptionPolicy: PreemptLowerPriority
+        priority: 0  # Remove this line as this is the old default priority
+        ...
+
+        kubectl delete pod <pod>
+
+        kubectl apply -f sample.yaml
+        ```
 
