@@ -802,7 +802,7 @@ So for the commands I showed in the previous video to work you must specify the 
 
 * define nodeName: in spec: section 
 
-    ``bash
+    ```bash
     $ kubectl get pods -n kube-system 
 
     # replace the old pod and create with updated nginx.yaml file 
@@ -1089,4 +1089,57 @@ So for the commands I showed in the previous video to work you must specify the 
     `kubectl describe daemonsets or ds <name> -n <namespace>`
 
     `kubectl get ds -n <name>`
-* 
+
+
+* Static Pods 
+    - `/etc/kubernetes/manifests`
+    - A standalone worker node without interaction to the API Server can create the pods on it's own and run continers (CRE): containerd, rkt etc on it's own using the above manifest file path 
+
+    - By using the flag in kubelet.service `--pod-manifest-path=/etc/kubernetes/manifests`
+
+    - or    `--config=kubeconfig.yaml` then set the statisPodPath: /etc/kubernetes/manifests in kubeconfig.yaml file 
+
+        ![alt text](image-3.png)
+    
+    - `kubectl get pods -n kube-system`
+
+        ![alt text](image-4.png)
+
+    - Fiding the path of the directory currently holding the static pod definition files 
+
+        `grep -i  staticPodPath /var/lib/kubelet/config.yaml`
+
+        ```bash
+        # first identify the kubelet config file 
+    
+        root@controlplane:~# ps -aux | grep /usr/bin/kubelet
+
+        root      3668  0.0  1.5 1933476 63076 ?       Ssl  Mar13  16:18 /usr/bin/kubelet --bootstrap-kubeconfig=/etc/kubernetes/bootstrap-kubelet.conf --kubeconfig=/etc/kubernetes/kubelet.conf --config=/var/lib/kubelet/config.yaml --network-plugin=cni --pod-infra-container-image=k8s.gcr.io/pause:3.2
+
+        root      4879  0.0  0.0  11468  1040 pts/0    S+   00:06   0:00 grep --color=auto /usr/bin/kubelet
+        root@controlplane:~#
+
+        # Next lookup the value assigned for staticPodPath
+        root@controlplane:~# grep -i staticPodPath /var/lib/kubelet/config.yaml
+        staticPodPath: /etc/kubernetes/manifests
+        root@controlplane:~#
+        ```bash 
+
+
+    `kubectl run --restart=Never --image=busybox static-busybox --dry-run=client -o yaml --command -- sleep 1000 > /etc/kubernetes/manifests/static-busybox.yaml`
+
+    or 
+
+    `kubectl run static-busybox --image=busybox --dry-run=client -o yaml --command -- sleep 1000 > static-busybox.yaml`
+
+    - updating the image in running pod 
+
+        `kubectl set image pod/<pod-name> <container-name>=<new-image>:<tag>`
+
+        or 
+
+        `kubectl apply -f your-pod-file.yaml`
+
+
+
+
