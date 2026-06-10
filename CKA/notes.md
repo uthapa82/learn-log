@@ -1197,3 +1197,43 @@ So for the commands I showed in the previous video to work you must specify the 
         kubectl apply -f sample.yaml
         ```
 
+* Multiple Scheduler 
+    - custom scheduling algorithm 
+    
+    ```bash
+    apiVersion: kubescheduler.config.k8s.io/v1
+    kind: KubeSchedulerConfiguration
+    profiles:
+    - schedulerName: default or <any-custom-name>
+
+
+    # deploying an Additional Scheduler 
+    $ wget https://storage.googleapis.com/kubernetes-release/release/v1.XX.0/bin/linux/amd64/kube-scheduler
+
+    #kube-scheduler.service , can use same scheduler binaries or use one that we might have built ourself
+    ExecStart=/usr/local/bin/kube-scheduler \\
+      --config=/etc/kubernetes/config/kube-scheduler.yaml
+
+    # point to separate file 
+    ExecStart=/usr/local/bin/kube-scheduler \\
+      --config=/etc/kubernetes/config/my-kube-scheduler-2-config.yaml
+    
+    ```
+
+    - This is not how we would deploy a custom scheduler 99% of the time today, because with kube ADM deployment all the control plane components run as a pod or a deployment within the kubernetes cluster. 
+
+    - Deploying as a pod 
+
+        ![alt text](image-5.png)
+
+        ![alt text](image-6.png)
+
+    ```bash
+    kubectl get events -o wide
+    
+    kubectl logs my-custom-scheduler --namespace=kube-system
+
+    kubectl get serviceaccount -n <namespace>
+
+    kubectl get clusterrolebinding 
+    ````
