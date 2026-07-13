@@ -7,13 +7,13 @@
 ```
 VPC1 ---------- Gi0/2                      Gi0/1 ---------- ens4 [Ubuntu Node]
  10.0.0.1/24              [Packet Broker]                    (mgmt / SSH to broker)
-VPC2 ---------- Gi0/4        (IOSvL2)       Gi0/3 ---------- ens5 [Ubuntu Node]
+VPC2 ---------- Gi0/4                      Gi0/3 ---------- ens5 [Ubuntu Node]
  10.0.0.2/24                                                (monitoring / promiscuous capture)
 ```
 
 - **VPC1 / VPC2**: test traffic sources, connected directly to the Packet Broker's data ports.
 - **Packet Broker**: switches VPC1 ↔ VPC2 traffic normally over Gi0/2 and Gi0/4, and simultaneously mirrors both ports out Gi0/3 toward the monitoring interface. Also has a dedicated management port (Gi0/1) for SSH access.
-- **Ubuntu Node**: two interfaces — `ens4` for SSH/management into the broker, `ens5` for passively capturing the mirrored traffic (promiscuous mode).
+- **Ubuntu Node**: ens3 for ssh from host then two interfaces — `ens4` for SSH/management into the Pacektbroker, `ens5` for passively capturing the mirrored traffic (promiscuous mode).
 
 ---
 
@@ -24,7 +24,7 @@ VPC2 ---------- Gi0/4        (IOSvL2)       Gi0/3 ---------- ens5 [Ubuntu Node]
 | VPC1 | 10.0.0.1/24 | Test traffic source |
 | VPC2 | 10.0.0.2/24 | Test traffic source |
 | Packet Broker Vlan99 (mgmt SVI) | 172.16.100.1/24 | SSH management, reached via Gi0/1 |
-| Ubuntu `ens4` | 172.16.100.2/24 | Management path to broker |
+| Ubuntu `ens4` | 172.16.100.2/24 | Management path to Packetbroker |
 | Ubuntu `ens5` | none needed | Promiscuous capture only |
 | Ubuntu `ens3` (for ssh) | DHCP / home network | General SSH access to the Ubuntu node itself |
 
@@ -200,7 +200,7 @@ ssh packet-broker
 
 | Symptom | Likely Cause | Fix |
 |---|---|---|
-| No traffic on `ens5` at all | `monitor session` not active, or Gi0/3 down | `show monitor session 1` on the broker — confirm operational status and that Gi0/3 shows `connected` |
+| No traffic on `ens5` at all | `monitor session` not active, or Gi0/3 down | `show monitor session 1` on the packetbroker — confirm operational status and that Gi0/3 shows `connected` |
 | VPC1 can't reach VPC2 | VLAN mismatch on Gi0/2/Gi0/4, or one port not `no shutdown` | `show interfaces status` — confirm both ports `connected` and VLAN 10 |
 | SSH KEX error | IOSv legacy crypto vs modern OpenSSH client defaults | Use the `~/.ssh/config` entry in Section 5 |
 | SSH password fails after KEX succeeds | `username`/`secret` missing or VTY not set to `login local` | `show running-config \| include username` / `\| section line vty` |
