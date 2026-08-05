@@ -1237,3 +1237,130 @@ So for the commands I showed in the previous video to work you must specify the 
 
     kubectl get clusterrolebinding 
     ````
+
+* Admission Controllers 
+    
+    ```bash
+    kube-apiserver -h | grep enable-admission-plugins 
+
+    # on kube-adm based setup 
+    kubectl exec kube-apiserver-controlplane -n kube-system -- kube-apiserver -h | grep enable-admission-plugins 
+
+    kubectl run 
+    ```
+
+    - To add admission controller update the kube-apiserver.service 
+
+        ![alt text](image-7.png)
+
+    - reconfiguring the API server to enable the ImagePolicyWebhook admission plugin and ensuring that i can access the configuration files 
+
+    ```bash 
+    Edit /etc/kubernetes/manifests/kube-apiserver.yaml:
+
+    cp /etc/kubernetes/manifests/kube-apiserver.yaml /opt/kube-apiserver.yaml.bak
+    vi /etc/kubernetes/manifests/kube-apiserver.yaml
+
+    1. Enable the admission plugin:
+
+        - --enable-admission-plugins=NodeRestriction,ImagePolicyWebhook
+
+    2. Add the admission control config file:
+
+        - --admission-control-config-file=/etc/kubernetes/imgvalidation/admission-configuration.yaml
+
+    3. Mount the imgvalidation directory:
+
+    Add to volumes:
+
+        - name: imgvalidation
+          hostPath:
+            path: /etc/kubernetes/imgvalidation
+            type: Directory
+
+    Add to volumeMounts:
+
+        - name: imgvalidation
+          mountPath: /etc/kubernetes/imgvalidation
+          readOnly: true
+
+    4. Verify the API server is running:
+
+    kubectl get pods -n kube-system
+    ```
+
+* Validating and Mutating Admission Controllers 
+    - `kubectl describe pvc myclaim`
+
+    - PersistentVolumeClaim
+
+    - Mutating Admission Controllers: Those that can change or mutate the object itself before it is created 
+
+    - Validating Admission Controllers: Those that can validate the request and allow or deny
+
+    ```bash
+    kubectl -n webhook-demo create secret tls webhook-server-tls \
+    --cert "/root/keys/webhook-server-tls.crt" \
+    --key "/root/keys/webhook-server-tls.key"
+
+    # A pod with a securityContext explicitly allowing it to run as root.
+    # The effect of deploying this with and without the webhook is the same. The
+    # explicit setting however prevents the webhook from applying more secure
+    # defaults.
+    apiVersion: v1
+    kind: Pod
+    metadata:
+    name: pod-with-override
+    labels:
+        app: pod-with-override
+    spec:
+    restartPolicy: OnFailure
+    securityContext:
+        runAsNonRoot: false
+    containers:
+        - name: busybox
+        image: busybox
+        command: ["sh", "-c", "echo I am running as user $(id -u)"]
+    ```
+
+* Logging and Monitoring 
+
+    ```bash
+    kubectl top node 
+    kubectl top pod 
+    ```
+
+* Managing Application log
+
+    ```bash 
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: event-simulator-pod
+    spec:
+      containers:
+      - name: event-simulator
+        image: kodekloud/event-simulator 
+      - name: image-processor
+        image: some-image-processor 
+    
+    $ kubectl logs -f event-simulator-pod event-simulator
+    ```
+
+* Application Lifecycle Management
+
+    ```bash
+    # view changes made to out deployment
+    kubectl rollout status deployment/myapp-deployment 
+
+    # revision and history 
+    kubectl rollout history deployment/myapp-deployment
+
+    # edit the definition file or use following command 
+    kubectl edit deployment <name>
+    kubectl set image deployment <deployment-name> container-name=Image:version
+
+    # rollout to previous version 
+    kubectl rollout undo deployment <deployment-name>
+    ```
+    
