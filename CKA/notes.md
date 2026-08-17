@@ -1362,5 +1362,95 @@ So for the commands I showed in the previous video to work you must specify the 
 
     # rollout to previous version 
     kubectl rollout undo deployment <deployment-name>
+
+    # Commands and Arguments 
+    command: [ "sleep 5000"] or 
+    command:
+    - "sleep"
+    - "5000"
+
+    # if we need to force edit
+    kubectl edit pod <pod-name>
+    kubectl replace --force -f <temp-file-name-automatically-created>
+
+    # command overrides entrypoint, args override CMD in dockerfile 
+
+    kubectl run webapp-green --image=kodekloud/webapp-color --dry-run=client -o yaml
+
+    kubectl run nginx --image=nginx -- <arg1> <argN>
+
+    kubectl run webapp-green --image=kodekloud/webapp-color --  --color green
+
+    # configMaps
+    kubectl get configmaps or cm for short
+
+    # get output in yaml
+    kubectl get pod <pod-name> -o yaml
+    kubectl create configmap webapp-config-map --from-literal APP_COLOR=darkblue --from-literal APP_OTHER=disregard
+
     ```
+
+    **ConfigMap**
+
+    ```bash
+
+    ---
+    apiVersion: v1
+    kind: Pod
+    metadata:
+    labels:
+        name: webapp-color
+    name: webapp-color
+    namespace: default
+    spec:
+    containers:
+    - env:
+        - name: APP_COLOR
+        valueFrom:
+        configMapKeyRef:
+            name: webapp-config-map
+            key: APP_COLOR
+        image: kodekloud/webapp-color
+        name: webapp-color
     
+    ```
+
+    Secrets
+
+    ```bash
+    kubectl get secrets
+
+    # Run the command: kubectl describe secrets dashboard-token and look at the data field.
+    # There are three secrets - ca.crt, namespace and token.
+    
+
+    sed -i 's/^DB_Host:.* /DB_Host: c3FsMDE=/' db-secret.yaml 
+
+    sed -i 's/DB_Host: cdher/DB_Host: cenew/' file.txt
+
+    kubectl create secret generic db-secret \
+    --from-literal=DB_Host=sql01 \
+    --from-literal=DB_User=root \
+    --from-literal=DB_Password=password123
+
+    kubectl get pod webapp-pod -o yaml > webapp-pod.yaml
+    kubectl delete pod webapp-pod
+
+    apiVersion: v1
+    kind: Pod
+    metadata:
+    name: webapp-pod
+    labels:
+        name: webapp-pod
+    namespace: default
+    spec:
+    containers:
+    - name: webapp
+        image: kodekloud/simple-webapp-mysql
+        imagePullPolicy: Always
+        envFrom:
+        - secretRef:
+            name: db-secret
+    
+    kubectl apply -f webapp-pod.yaml
+    ```
