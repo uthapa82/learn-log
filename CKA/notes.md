@@ -746,7 +746,7 @@ So for the commands I showed in the previous video to work you must specify the 
 
     - Declarative: kubectl apply -f nginx.yaml, look at existing configuration and what need to be updated or changed 
 
-        ![alt text](k8s-kubernetes.png)
+        ![alt text](images/k8s-kubernetes.png)
 
     ```bash
     kubectl edit pod myapp-pod --> are not recorded anywhere 
@@ -870,7 +870,7 @@ So for the commands I showed in the previous video to work you must specify the 
 * Node Affinity 
     - spec --> affinity and nodeAffinity
 
-        ![alt text](image.png)
+        ![alt text](images/image.png)
 
     ```bash 
     - matchExpressions:
@@ -909,7 +909,7 @@ So for the commands I showed in the previous video to work you must specify the 
         What would happen to the pods that are running on the node ? 
         The two types of node affinity available today has this value set to ignored which means pods will continue to run and any changes in node affinity will not impact them once they are scheduled. 
         
-        ![alt text](image-1.png)
+        ![alt text](images/image-1.png)
 
 
     ```bash 
@@ -991,7 +991,7 @@ So for the commands I showed in the previous video to work you must specify the 
         type: Container
     ```
 
-    ![alt text](image-2.png)
+    ![alt text](images/image-2.png)
 
     - Resource Quotas at namespace level 
     
@@ -1099,11 +1099,11 @@ So for the commands I showed in the previous video to work you must specify the 
 
     - or    `--config=kubeconfig.yaml` then set the statisPodPath: /etc/kubernetes/manifests in kubeconfig.yaml file 
 
-        ![alt text](image-3.png)
+        ![alt text](images/image-3.png)
     
     - `kubectl get pods -n kube-system`
 
-        ![alt text](image-4.png)
+        ![alt text](images/image-4.png)
 
     - Fiding the path of the directory currently holding the static pod definition files 
 
@@ -1224,9 +1224,9 @@ So for the commands I showed in the previous video to work you must specify the 
 
     - Deploying as a pod 
 
-        ![alt text](image-5.png)
+        ![alt text](images/image-5.png)
 
-        ![alt text](image-6.png)
+        ![alt text](images/image-6.png)
 
     ```bash
     kubectl get events -o wide
@@ -1251,7 +1251,7 @@ So for the commands I showed in the previous video to work you must specify the 
 
     - To add admission controller update the kube-apiserver.service 
 
-        ![alt text](image-7.png)
+        ![alt text](images/image-7.png)
 
     - reconfiguring the API server to enable the ImagePolicyWebhook admission plugin and ensuring that i can access the configuration files 
 
@@ -1364,7 +1364,7 @@ So for the commands I showed in the previous video to work you must specify the 
     kubectl rollout undo deployment <deployment-name>
 
     # Commands and Arguments 
-    command: [ "sleep 5000"] or 
+    command: [ "sleep",  "5000"] or 
     command:
     - "sleep"
     - "5000"
@@ -1389,6 +1389,7 @@ So for the commands I showed in the previous video to work you must specify the 
     kubectl create configmap webapp-config-map --from-literal APP_COLOR=darkblue --from-literal APP_OTHER=disregard
 
     ```
+
 
     **ConfigMap**
 
@@ -1415,7 +1416,8 @@ So for the commands I showed in the previous video to work you must specify the 
     
     ```
 
-    Secrets
+
+    **Secrets**
 
     ```bash
     kubectl get secrets
@@ -1453,4 +1455,43 @@ So for the commands I showed in the previous video to work you must specify the 
             name: db-secret
     
     kubectl apply -f webapp-pod.yaml
+    ```
+
+    **Multi Container Pods**
+
+    ```bash
+    apiVersion: v1
+    kind: Pod
+    metadata:
+    name: yellow
+    spec:
+    containers:
+    - name: lemon
+        image: busybox
+        command: [ "sleep", "1000" ]
+    - name: gold
+        image: redis
+
+    kubectl -n elastic-stack logs kibana 
+
+    # if single container 
+    kubectl exec app -- less /log/app.log
+
+    # multiple container 
+    kubectl exec <pod-name> -c <container-name> -- cat /path/to/logfile.log
+
+    ...
+    initContainers:
+    - name: sidecar
+      image: kodekloud/filebeat-configured
+      restartPolicy: Always
+      volumeMounts:
+        - name: log-volume
+          mountPath: /var/log/event-simulator/
+    
+    k get pods -n elastic-stack 
+
+    k logs app -n elastic-stack -c sidecar
+
+    kubectl get pod app -n elastic-stack -w
     ```
