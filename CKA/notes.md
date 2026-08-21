@@ -1324,7 +1324,6 @@ So for the commands I showed in the previous video to work you must specify the 
     ```
 
 * Logging and Monitoring 
-
     ```bash
     kubectl top node 
     kubectl top pod 
@@ -1586,6 +1585,7 @@ In this setup:
     Kubernetes starts the sidecar first, waits for readiness, then starts the main app.
 
     ```bash
+
     kubectl get pods -o custom-columns="POD:.metadata.name,INIT_CONTAINERS:.spec.initContainers[*].name"
 
     for pod in red green blue; do echo "Pod: $pod" && kubectl get pod $pod -o yaml | grep -i initContainers; done
@@ -1595,12 +1595,15 @@ In this setup:
     k logs <container>
 
     k logs orange -c init-myservice
+
     ```
+
 
 
     **Autoscaling**
     
     ```bash
+
     kubectl scale deployment flask-web-app --replicas=3
 
     apiVersion: autoscaling/v2
@@ -1686,8 +1689,201 @@ In this setup:
 
     # view the resource consumption of the pods 
     kubectl top pod 
+    ```
+
+
+**Cluster Maintenance**
+
+    ```bash
+
+    # drain node of all the workloads and mark if unschedulable
+    kubectl drain <node> --ignore-daemonsets 
+
+    # only mark node unschedulable, do not terminate or move the existing pods
+    kubectl cordon <node>
+
+    # uncordon 
+    kubectl uncordon <node>
+
+    # check for the version
+    kubectk version
+    kubectl get nodes
+
+    kubectl get nodes -o custom-columns="NODE:.metadata.name,TAINTS:.spec.taints[*].effect"
+
+    kubectl describe node <node> | grep -i taints 
+
+    # check the latest version available for an upgrade with the current version
+    kubeadm upgrade plan
+
+    kubectl drain controlplane --ignore-daemonsets
+
+    # on control plane node (upgrading master)
+    vim /etc/apt/sources.list.d/kubernetes.list
+
+    # update the version in the URL to next available minor releases i.e v1.35
+    deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.35/deb/ /
+
+    apt update
+
+    apt-cache madison kubeadm
+    
+    # one of the version from above command is 1.35.0-1.1
+    apt-get install kubeadm=1.35.0-1.1 or alternatively 1.35.0-*
+
+    # commands to upgrade kubernetes cluster
+    kubeadm upgrade plan v1.35.0
+    kubeadm upgrade apply v1.35.0
+
+    # upgrade the kubelet version, also mark the node as schedulable if not schedulable
+    apt-get install kubelet=1.35.0-1.1
+
+    # refresh systemd configuration and apply changes to the kubelet service
+    systemctl daemon-reload
+
+    systemtctl restart kubelet
+
+    kubectl uncordon controlplane
+
+
+    #---- upgrading worker node ---
+    kubectl drain node01 --ignore-daemonsets
+
+    # rest same as control plane t
+    ```
+  
+
+    **Backup & Restore**
+
+    - etcd is deployed as a static pod on the master, version is v3
+
+    ```bash
+    # verify version
+    etcdctl version
+
+    # Backing up ETCD, taking a snapshot from running etcd server 
+    ETCDCTL_API=3 etcdctl \
+    --endpoints=https://127.0.0.1:2379 \
+    --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+    --cert=/etc/kubernetes/pki/etcd/server.crt \
+    --key=/etc/kubernetes/pki/etcd/server.key \
+    snapshot save /backup/etcd-snapshot.db
+
+    --cert = path to the client cert 
+    --key = path to the client key 
+
+    # etcdutl (file-based backup)
+    # offline file-level backup of the data directory 
+    etcdutl backup \
+    --data-dir /var/lib/etcd \
+    --backup-dir /backup/etcd-backup
+
+    -> This copies the etcd backend database and WAL files to the target location. 
+
+    # checking snapshot status 
+    etcdctl snapshot status /backup/etcd-snapshot.db \
+    --write-out=table 
+
+    # Restore etcdutl
+    etcdutl snapshot restore /backup/etcd-snapshot.db \
+    --data-dir /var/lib/etcd-restored
+
+    # To use a backup made with etcdutl backup, simply copy the backup contents back into /var/lib/etcd and restart etcd.
+    etcdctl snapshot save --> is used for creating .db snapshots from live etcd clusters.
+
+    etcdctl snapshot status --> provides metadata information about the snapshot file.
+
+    etcdutl snapshot restore --> is used to restore a .db snapshot file.
+
+    etcdutl backup --> performs a raw file-level copy of etcd’s data and WAL files without needing etcd to be running.
+
+
+    # --------lab--------
+    etcd version
+    kubectl -n kube-system describe pod etcd-controlplane | grep -i image
+
+    root@controlplane:~# kubectl -n kube-system describe pod etcd-controlplane | grep '\--listen-client-urls'
+      --listen-client-urls=https://127.0.0.1:2379,https://10.2.43.11:2379
+
+    # backup before maintenance window
+    etcdctl --endpoints=https://127.0.0.1:2379 \
+    --cacert=/etc/kubernetes/pki/etcd/ca.crt \
+    --cert=/etc/kubernetes/pki/etcd/server.crt \
+    --key=/etc/kubernetes/pki/etcd/server.key \
+    --key=/etc/kubernetes/pki/etcd/server.key \
+    snapshot save /opt/snapshot-pre-boot.db
+
+    # restore 
+    Step 1: Stop the kube-apiserver
+    mv /etc/kubernetes/manifests/kube-apiserver.yaml /tmp/
+    sleep 30
+
+    Step 2: Restore the etcd snapshot 
+    etcdutl snapshot restore /opt/snapshot-pre-boot.db --data-dir /var/lib/etcd-from-backup
+
+    Step 3: Update the etcd configuration
+    vi /etc/kubernetes/manifests/etcd.yaml
+
+    #modify the volumes section 
+    From:
+    volumes:
+    - hostPath:
+        path: /etc/kubernetes/pki/etcd
+        type: DirectoryOrCreate
+        name: etcd-certs
+    - hostPath:
+        path: /var/lib/etcd                    # OLD directory
+        type: DirectoryOrCreate
+        name: etcd-data
+
+    To:
+    volumes:
+    - hostPath:
+        path: /etc/kubernetes/pki/etcd
+        type: DirectoryOrCreate
+        name: etcd-certs
+    - hostPath:
+        path: /var/lib/etcd-from-backup        # NEW restored directory
+        type: DirectoryOrCreate
+        name: etcd-data
+
+    # upon saving etcd pod will automatically restart due to static pod behavior 
+
+    Step 4: Restart kube api-server
+    # move manifest file back to original location
+    mv /tmp/kube-apiserver.yaml /etc/kubernetes/manifests/
+
+    # wait for 60 seconds to allow the kube-apiserver to start 
+
+    Step 5: Restart other control plane components 
+    # restart kube-controller-manager 
+    mv /etc/kubernetes/manifests/kube-controller-manager.yml /tmp/
+    sleep 20
+
+    # restart kube-scheduler 
+    mv /etc/kubernetes/manifests/kube-scheduler.yml /tmp/
+    sleep 20
+    mv /tmp/kube-scheduler.yml /etc/kubernetes/manifests/
+
+    # restart kubelet
+    systemctl restart kubelet
+
+    Step 6: Monitor the restart process
+    watch crictl ps
+    -> all components showuld show STATUS = Running
+
+    Step 7: Verify the restore 
+    # check all resources accross all namespaces 
+    kubectl get deployments,services --all-namespaces
+
+    # verify specific resources if needed 
+    kubectl get pods -all-namespaces
+    kubectl get nodes
 
     ```
 
 
-  
+
+
+    
+
