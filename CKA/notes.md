@@ -1865,3 +1865,92 @@ kubectl get deployments,services --all-namespaces
 kubectl get pods -all-namespaces
 kubectl get nodes
 ```
+
+## Security
+
+### Certificate Inspection
+
+```bash
+# view kube-apiserver manifests file and then look for value of flags for certs
+cat /etc/kuberenetes/manifests/kube-apiserver.yaml
+
+# find the common name (CN) configured on the Kube API server certficiate
+openssl x509 -in /etc/kubernetes/pki/apiserver.crt -text
+```
+
+### Troubleshooting Control Plane Components
+
+```bash
+# when main componenets of kubernetes like kube-apiserver or etcd foes down need to one
+# step down to docker, list all containers
+crictl ps -a
+
+# check log
+crictl logs <container>
+```
+
+### Certificates API
+
+```bash
+# generate key
+openssl genrsa -out jane.key 2048
+
+openssl req -new -key jane.key -subj "/CN=jane" -out jane.csr
+```
+
+- Sent to admin, now admin creates CSR object
+
+```yaml
+apiVersion: certificates.k8s.io/v1
+kind: CertificateSigningRequest
+metadata:
+  name: jane-csr
+spec:
+  signerName: Kubernetes.io/kube-apiserver-client
+  expirationSeconds: 600
+  usages:
+  - client auth
+  request: <BASE64_ENCODED_CSR>
+  conditions:
+  - type: Approved
+    status: "True"
+    reason: KubectlApprove
+    message: "This CSR was approved by kubectl certificate approve."
+    lastUpdateTime: "2026-02-03T11:46:10Z"
+```
+
+```bash
+# for BASE64_ENCODED_CSR, disable wrapping with (-w 0)
+cat akshay.csr | base64 -w 0   # ---> move the output below request field
+
+# see the requests
+kubectl get or delete csr
+
+# approve the new request
+kubectl certificate approve or dney <csr, eg: jane>
+
+# view the certificate by viewing yaml format
+kubectl get csr jane -o yaml
+
+# decode
+echo "Ls0....=" | base64 --decode   # ---> then can be shared with end users
+```
+
+- Controller manager is responsible for all the certificate related tasks
+
+**Lab**
+
+```yaml
+apiVersion: certificates.k8s.io/v1
+kind: CertificateSigningRequest
+metadata:
+  name: akshay
+spec:
+  groups:
+  - system:authenticated
+  request: <Paste the base64 encoded value of the CSR file>
+  signerName: kubernetes.io/kube-apiserver-client
+  usages:
+  - client auth
+```
+
