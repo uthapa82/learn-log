@@ -1954,3 +1954,87 @@ spec:
   - client auth
 ```
 
+
+### Security KubeConfig
+
+```bash
+kubectl get pods \
+--server my-kube-playground:6443 \
+--client-key admin.key \
+--client-certificate admin.crt \
+--certificate-authority ca.crt
+
+# typing the above flag every time is tedious so instead can move it to $HOME/.kube/config
+--server my-kube-playground:6443
+--client-key admin.key
+--client-certificate admin.crt
+--certificate-authority ca.crt
+
+kubectl get pods \
+--kubeconfig config
+```
+
+- KubeConfig file has three sections:
+  - Cluster: Development environments for: Production, Google.
+  - Contexts: define which user account will be used to access which cluster. Eg. Admin@Production -> use admin account to access a production cluster
+  - Users: accounts with which we have access to these cluster, may have different privileges.
+
+```yaml
+apiVersion: v1
+kind: Config
+current-context: dev-user@google
+clusters:
+- name: my-kube-playground
+  cluster:
+    certificate-authority:
+    # instead of certificate authority we can provide
+    certificate-authority-data: <base64-encoded-data>
+    server: https://my-kube-playground:6443
+
+contexts:
+- name: my-kube-admin@my-kube-playground
+  context:
+    cluster: my-kube-playground
+    user: my-kube-admin
+    namespace: finance
+
+users:
+- name: my-kube-admin
+  user:
+    client-certificate: admin.crt   # better to use full path like /etc/kubernetes/pki/users/admin.crt
+    client-key: admin.key
+```
+
+```bash
+kubectl config view
+
+kubectl config view --kubeconfig=my-custom-config
+
+# change context
+kubectl config use-context prod-user@production
+```
+
+**Lab**
+
+```bash
+kubectl config --kubeconfig=/root/my-kube-config use-context research
+Switched to context "research".
+
+kubectl config --kubeconfig=/root/my-kube-config current-context
+
+# when we don't want to specify the kubeconfig file option on each kubectl command
+vi ~/.bashrc
+
+# add
+export KUBECONFIG=/root/my-kube-config
+# OR
+export KUBECONFIG=~/my-kube-config
+# OR
+export KUBECONFIG=$HOME/my-kube-config
+
+# apply changes and reload the current shell sessions
+source ~/.bashrc
+```
+
+
+
