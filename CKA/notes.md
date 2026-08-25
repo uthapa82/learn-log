@@ -1954,8 +1954,9 @@ spec:
   - client auth
 ```
 
+---
 
-### Security KubeConfig
+## Security KubeConfig
 
 ```bash
 kubectl get pods \
@@ -2036,5 +2037,226 @@ export KUBECONFIG=$HOME/my-kube-config
 source ~/.bashrc
 ```
 
+### API Groups
+
+```bash
+# to check version
+curl https://kube-master:6443/version
+
+curl https://kube-master:6443/api/v1/pods
+```
+
+- Different api's : /metrics, /healthz, /version, /api, /apis and /logs
+- APIs responsible for the cluster functionalities (/api, /apis)
+- core group (/api) : core functionality exists like namespaces, pods, replication, controllers etc
+
+```bash
+curl https://localhost:6443 -k
+
+curl https://localhost:6443 -k \
+--key admin.key \
+--cert admin.crt \
+--cacert ca.crt
+
+# Alternative to above
+kubectl proxy
+# launches proxy server on local host then we don't have to
+curl http://localhost:8001 -k
+
+curl https://localhost:6443/apis -k | grep "name"
+```
+
+- kube-proxy vs kubectl proxy: kube-proxy is used to enable connectivity between pods and services across different nodes in the cluster. **kubectl proxy** is an HTTP proxy service created by kube control utility to access the kube-apiserver.
+
+- Key takeaways: All resources in kubernetes are grouped into different API groups. At the top level we have core API group and named API group, under named we have one for each section. Under the API groups we have different resources and each resource has a set of associated actions known as verbs. We can use these to allow or deny access to users
+
+  ![alt text](images/api-groups.png)
 
 
+### Authorization
+
+- Once Authenticated what can a user do? that's what authorization defines
+- Why Authorization ?
+  As admin can view get pods, create delete pods, i.e any operations
+  we don't have other users which we will approve like developers, bots etc to have same level of access as us, we need to give minimum level of access required to the job.
+
+- Authorization Mechanisms
+  - Node: Node authorizer * Read: services, endpoints, nodes, pods
+  - ABAC: we associate a user or group of users with a set of permissions. For example, we say a dev-user can view/create/delete PODs. We do this by creating policy file with a set of policies defined in a JSON format. Pass this file in to API server. Difficult to manage as for each user need to edit the configuration file and restart the kube apiserver.
+  - RBAC: Much easier — instead of directly associating a user or a group with a set of permissions, we define a role. Create a role with the set of permissions required for developers. Then we associate all developers with that role. Provides more standard approach to managing access within the Kubernetes.
+  - Webhook: What if we want to outsource all the authorization mechanisms, say we want to manage a authorization externally and not through the built in mechanisms that we looked above. For example, Open Policy Agent is a third party tool that helps with admission control and authorization. We can have kubernetes make an API call to the open policy agent with the information about the user and his access requirements and have the open policy agent decide if the user should be permitted or not. Based on that response, the user is granted access.
+
+```json
+{"kind": "Policy", "spec": {"user": "dev-user", "namespace": "*", "resource": "pods", "apiGroup": "*"}}
+{"kind": "Policy", "spec": {"user": "dev-user-2", "namespace": "*", "resource": "pods", "apiGroup": "*"}}
+{"kind": "Policy", "spec": {"user": "dev-users", "namespace": "*", "resource": "pods", "apiGroup": "*"}}
+```
+
+- Two additional modes than above:
+  - AlwaysAllow: allows all request without performing the authorization checks
+  - AlwaysDeny:
+
+```bash
+# the modes are defined
+ExecStart=/usr/local/bin/kube-apiserver \
+--authorization-mode=Node,RBAC,Webhook \
+...
+```
+
+- When we have multiple modes configured our request is authorized using each one in the order it is specified.
+
+### Role-Based Access Control (RBAC)
+
+1. Create a role definition file
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: developer
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["list", "get", "create", "update", "delete"]
+- apiGroups: [""]
+  resources: ["ConfigMap"]
+  verbs: ["create"]
+```
+
+2. Create using role definition file
+
+`kubectl create -f role-definition.yaml`
+
+3. Link the user to that role, create another object called role binding
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: devuser-developer-binding
+subjects:
+- kind: user
+  name: dev-user
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: developer
+  apiGroup: rbac.authorization.k8s.io
+```
+
+4. View created roles
+
+```bash
+# view
+kubectl get roles
+
+kubectl get rolebindings
+
+kubectl describe role <role>
+
+kubectl describe rolebindings <role-bindings>
+
+# being user how to check the access to particular cluster
+kubectl auth can-i create deployments
+
+kubectl auth can-i delete nodes
+
+# admin can check set of permission of other users
+kubectl auth can-i create deployments --as dev-user
+
+kubectl auth can-i create pods --as dev-user
+
+# can also specify namespace in the command
+kubectl auth can-i create pods --as dev-user --namespace test
+```
+
+- Say we have five pods in namespace, blue, green, orange, purple, and pink. We want to give access to a user to pods, but not all pods, we can restrict access to the blue and orange pod alone by adding a resource names field to the rule
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: developer
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "create", "delete"]
+  resourceNames: ["blue", "orange"]
+```
+
+**Lab**
+
+```bash
+kubectl describe pod kube-apiserver-controlplane -n kube-system
+
+kubectl auth can-i list pods -n default --as dev-user
+
+kubectl get pods --as dev-user
+
+# To create a Role:
+kubectl create role developer --namespace=default --verb=list,create,delete --resource=pods
+
+# To create a RoleBinding:
+kubectl create rolebinding dev-user-binding --namespace=default --role=developer --user=dev-user
+
+# to fix the resourceNames
+kubectl edit role developer -n blue
+```
+
+OR
+
+```yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: default
+  name: developer
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["list", "create", "delete"]
+
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: dev-user-binding
+subjects:
+- kind: User
+  name: dev-user
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: developer
+  apiGroup: rbac.authorization.k8s.io
+```
+
+- Adding additional rule to existing user
+
+  `kubectl edit role developer -n blue`
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: developer
+  namespace: blue
+rules:
+- apiGroups:
+  - apps
+  resourceNames:
+  - dark-blue-app
+  resources:
+  - pods
+  verbs:
+  - get
+  - watch
+  - create
+  - delete
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+```
