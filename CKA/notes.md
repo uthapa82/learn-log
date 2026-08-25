@@ -2189,6 +2189,8 @@ rules:
 ```bash
 kubectl describe pod kube-apiserver-controlplane -n kube-system
 
+pss -aux | grep authorization
+
 kubectl auth can-i list pods -n default --as dev-user
 
 kubectl get pods --as dev-user
@@ -2259,4 +2261,122 @@ rules:
   - deployments
   verbs:
   - create
+```
+
+
+### Cluster Roles
+
+- Similar to how we grouped pods, deployments and services to namespaces, can we group Node, for example can we say Node-1 is in namespace dev and Node-02 is in namespace default?
+  - No we cannot do that, those are cluster wide or cluster scoped resources, cannot be associated to particular namespaces
+
+| Namespaced | Cluster Scoped |
+|----|-----|
+| pods, jobs, services, roles, rolebindings, configmaps, replicasets, deployments, secrets, PVC | nodes, PV, clusterroles, clusterbindings, certificatesigningrequests, namespaces |
+| `kubectl api-resources --namespaced=true` | `kubectl api-resources --namespaced=false` |
+
+- How do we authorize users to cluster wide resources like nodes or persistent volumes?
+  - That is where Cluster role and clusterbindings comes in play. Cluster roles are just like roles, except they are for cluster scoped resources
+  - Cluster Admin role can be created to create, view and delete nodes in a cluster
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cluster-administrator
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["list", "get", "create", "delete"]
+```
+
+- Create using `kubectl create -f def-file.yaml`
+
+- Link the user to that cluster role
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-admin-role-binding
+subjects:
+- kind: User
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: cluster-administrator
+  apiGroup: rbac.authorization.k8s.io
+```
+
+- Create rolebinding using `kubectl create -f role-binding.yaml`
+
+- **We can create a cluster role for namespaced resources as well, when we do that user will have access to these resources across all namespaces.**
+
+**Lab**
+
+```bash
+# ClusterRole is a non-namespaced resource. You can check via the
+kubectl api-resources --namespaced=false
+
+# imperative way
+kubectl create clusterrole node-viewer --verb=get,list,watch --resource=nodes
+
+kubectl create clusterrolebinding michelle-node-binding --clusterrole=node-viewer --user=michelle
+```
+
+```yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: node-admin
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get", "watch", "list", "create", "delete"]
+
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: michelle-binding
+subjects:
+- kind: User
+  name: michelle
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: node-admin
+  apiGroup: rbac.authorization.k8s.io
+
+# kubectl create -f <file-name>.yaml
+```
+
+- Adding storage access
+
+```yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: storage-admin
+rules:
+- apiGroups: [""]
+  resources: ["persistentvolumes"]
+  verbs: ["get", "watch", "list", "create", "delete"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "watch", "list", "create", "delete"]
+
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: michelle-storage-admin
+subjects:
+- kind: User
+  name: michelle
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: storage-admin
+  apiGroup: rbac.authorization.k8s.io
 ```
