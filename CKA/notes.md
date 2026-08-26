@@ -2380,3 +2380,107 @@ roleRef:
   name: storage-admin
   apiGroup: rbac.authorization.k8s.io
 ```
+
+### Service Accounts
+
+- Used by machines or bots
+- For example, Prometheus, Jenkins.
+- How service accounts and token work in Kubernetes?
+  - By default when a kubernetes cluster is setup it creates a service account by the name default in all namespaces.
+
+- Service account gets mounted as projected volume within the pod, projected volume can be thought of as a dynamic directory created inside the pod by kubernetes automatically. Mounted inside the location `/var/run/secrets/kubernetes.io/serviceaccount`
+
+```bash
+kubectl get serviceaccount
+
+# listing the content of directory to see the token available as a file
+kubectl exec -it my-kubernetes-dashboard ls /var/run/secrets/kubernetes.io/serviceaccount
+
+# create token, outside cluster, default valid for one hour
+kubectl create token dashboard-sa
+
+# extend the validity
+kubectl create token dashboard-sa --duration 2h
+
+# decode the token using jq and base64 utility, we can see exp defined
+jq -R 'split(".") | select(length > 0) | .[0],.[1] | @base64d | fromjson' <<< eyJhfn...
+
+# can be used to call kubernetes REST API using bearer token as authentication
+curl https://192.168.56.70:6443/api --insecure \
+--header "Authorization: Bearer ckadfh..."
+```
+
+- Default service account comes with lots of limitation but we can create our own.
+
+  `kubectl create serviceaccount dashboard-sa`
+
+- Declarative approach
+
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dashboard-sa
+  namespace: default
+# if we don't want a token to be automatically created and mounted inside the pod for the service
+automountServiceAccountToken: false
+```
+
+**Lab**
+
+```bash
+kubectl set serviceaccount deploy/web-dashboard dashboard-sa
+
+kubectl edit sa <name>
+
+kubectl patch sa dashboard-sa -p '{"automountServiceAccountToken": false}'
+```
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-dashboard
+  namespace: default
+  labels:
+    name: web-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: web-dashboard
+  template:
+    metadata:
+      labels:
+        name: web-dashboard
+    spec:
+      containers:
+      - name: web-dashboard
+        image: gcr.io/kodekloud/customimage/my-kubernetes-dashboard
+        ports:
+        - containerPort: 8080
+        env:
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        volumeMounts:
+        - mountPath: /var/run/secrets/kubernetes.io/serviceaccount/
+          name: token
+          readOnly: true
+      serviceAccountName: dashboard-sa
+      automountServiceAccountToken: false
+      volumes:
+      - name: token
+        projected:
+          sources:
+          - serviceAccountToken:
+              path: token
+```
+
+```bash
+kubectl apply -f web-dashboard/deployment.yaml
+
+kubectl get pods
+
+kubectl exec $(kubectl get pod -l name=web-dashboard -o jsonpath='{.items[0].metadata.name}') -- ls /var/run/secrets/kubernetes.io/serviceaccount/
+```
+
