@@ -2484,3 +2484,65 @@ kubectl get pods
 kubectl exec $(kubectl get pod -l name=web-dashboard -o jsonpath='{.items[0].metadata.name}') -- ls /var/run/secrets/kubernetes.io/serviceaccount/
 ```
 
+### Image Security 
+
+- by default if we do not specify anything it assumes library for example `image: library/nginx`
+
+- `image: docker.io/library/nginx` 
+          registry user/account image/Repository
+
+- Private Repository 
+
+```bash
+docker login private-registry.io
+
+# input the credentials and once successful, run the application using image 
+docker run private-registry.io/apps/internal-app
+
+# authorization ??, the image are pulled and run by docker runtime on the worker nodes
+
+# how do we pass the credentials?? 
+# first create secret object 
+kubectl create secret docker-registry regcred \
+--docker-server= private-registry.io \
+--docker-username= registry-user \
+--docker-password= registry-password \
+--docker-email= registry-user@org.com
+```
+
+- specify the image secret in pod definition file 
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata: 
+  name: nginx-pod
+spec:
+  containers:
+  - name: nginx
+    image: private-registry.io/apps/internal-app
+  imagePullSecrets:
+  - name: regcred
+```
+
+### Docker Security
+
+- Unlike virtual machines, containers are not completely isolated from their host.
+- Containers are isolated using namespaces, in linux the host has a namespace and the containers have their own namespace.
+
+- All the processes run by the containers are in fact run on the host itself, but in their own namespace.
+- Docker container is in its own namespace and it can see its own processes only.
+
+- The processes can have different process IDs in different namespaces and that's how Docker isolates containers within a system --> Process Isolation
+
+**Users in Context of Security**
+
+- By default Docker runs processes within containers as the root user
+
+- If we do not want the process within the container to run as the root user, we may set the user, using the `docker run --user=1001 ubuntu sleep 3600` command. Upon running the command we will now see the process runs with the new userID via `docker ps`
+
+- Docker uses **Linux Capabilities** to limit the user's abilities to the root within the container.
+
+- We can see all the capabilities at `/usr/include/linux/capability.h`
+
+- By default Docker runs a container with a limited set of capabilities, and so the processes running within the container do not have the privileges to say, reboot the host or perform operations that can disrupt the host or other containers running in the host. To override this: `docker run --cap-add MAC_ADMIN ubuntu`
