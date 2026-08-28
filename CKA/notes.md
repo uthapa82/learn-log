@@ -2594,3 +2594,192 @@ kubectl exec ubuntu-sleeper -- whoami
 kubectl delete po ubuntu-sleeper --force   # faster with force, only in lab/exam
 kubectl apply -f ubuntu-sleeper.yaml
 ```
+
+
+### Network Policy
+
+- In order to link Network Policy object and Pod we use same strategy as before. First we label the pods in Pod definition file and then select the same pod in podSelector field.
+
+```yaml
+policyTypes:
+- Ingress
+ingress:
+-from:
+  - podSelector:
+      matchLabels:
+        name: api-pod
+  ports:
+  - protocol: TCP
+    port: 3306
+
+---
+podSelector:
+  matchLabels:
+    role: db
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: db-policy
+spec:
+  podSelector:
+    matchLabels:
+      role: db 
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          name: api-pod
+    ports:
+    - protocol: TCP
+      port: 3306
+```
+
+- Network Policies are enforced by the network solutions implemented on kubernetes cluster and not all network solutions support network policies. Few of them that are supported are cube, router, calico, Romana and WaveNet.
+
+- If we used flannel as the networking solution, it does not support network policies.
+
+- Also even in a cluster configured with a solution that does not support network policies, we can still create the policies, but they will just not be enforced.
+
+
+### Developing Network Policies
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: db-policy
+spec:
+  podSelector:
+    matchLabels:
+      role: db
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          name: api-pod
+      namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: prod
+    - ipBlock:
+        cidr: 192.168.5.10/32
+    ports:
+    - protocol: TCP
+      port: 3306
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 192.168.5.10/32
+    ports:
+    - protocol: TCP
+      port: 80
+```
+
+**Lab**
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: internal-policy
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      name: internal
+  policyTypes:
+  - Egress
+  - Ingress
+  ingress:
+  - {}
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          name: mysql
+    ports:
+    - protocol: TCP
+      port: 3306
+
+  - to:
+    - podSelector:
+        matchLabels:
+          name: payroll
+    ports:
+    - protocol: TCP
+      port: 8080
+
+  - ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP
+```
+
+- **Target Pods**: This policy applies to all pods in the default namespace with the label `name: internal`.
+- **Ingress**: All incoming traffic is allowed to these pods. This is typically needed for UI-based testing during labs. In production, you should restrict ingress to only trusted sources.
+- **Egress**: Outbound traffic is restricted to:
+  - Pods labeled `name: mysql` on TCP port 3306 (database service)
+  - Pods labeled `name: payroll` on TCP port 8080 (payroll service)
+  - Any destination on UDP/TCP port 53 (for DNS resolution, required for service discovery in Kubernetes)
+- **DNS Access**: DNS is handled by the kube-dns service, which listens on port 53 for both UDP and TCP:
+
+```bash
+root@controlplane:~> kubectl get svc -n kube-system
+NAME       TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)                  AGE
+kube-dns   ClusterIP   10.96.0.10   <none>        53/UDP,53/TCP,9153/TCP   18m
+
+root@controlplane:~>
+```
+
+### Kubectx and Kubens - Command Line Utilities
+
+- We have had to work on several different namespaces in the practice lab environments. In some labs, we also had to switch between several contexts.
+- While this is excellent for hands-on practice, in a real "live" kubernetes cluster implemented for production, there could be a possibility of often switching between a large number of namespaces and clusters.
+- This can quickly become a confusing and overwhelming task if we had to rely on kubectl alone.
+- This is where command line tools such as kubectx and kubens come into picture.
+- Reference: https://github.com/ahmetb/kubectx
+
+**Kubectx**
+
+- With this tool, we don't have to make use of lengthy `kubectl config` commands to switch between contexts. This tool is particularly useful to switch context between clusters in a multi-cluster environment.
+
+```bash
+# Installation
+sudo git clone https://github.com/ahmetb/kubectx /opt/kubectx
+sudo ln -s /opt/kubectx/kubectx /usr/local/bin/kubectx
+
+# To list all contexts
+kubectx
+
+# To switch to a new context
+kubectx <context_name>
+
+# To switch back to previous context
+kubectx -
+
+# To see current context
+kubectx -c
+```
+
+**Kubens**
+
+- This tool allows users to switch between namespaces quickly with a simple command.
+
+```bash
+# Installation
+sudo git clone https://github.com/ahmetb/kubectx /opt/kubectx
+sudo ln -s /opt/kubectx/kubens /usr/local/bin/kubens
+
+# To switch to a new namespace
+kubens <new_namespace>
+
+# To switch back to previous namespace
+kubens -
+```
