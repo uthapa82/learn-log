@@ -2546,3 +2546,51 @@ spec:
 - We can see all the capabilities at `/usr/include/linux/capability.h`
 
 - By default Docker runs a container with a limited set of capabilities, and so the processes running within the container do not have the privileges to say, reboot the host or perform operations that can disrupt the host or other containers running in the host. To override this: `docker run --cap-add MAC_ADMIN ubuntu`
+
+
+### Security Context
+
+- As we discussed above in docker security when we run a container we have a set of security standards, such as the ID of the user, used to run the container, linux capabilities.
+
+- These can be added in Kubernetes as well, as we know Containers are encapsulated in pods, we may choose to configure the security settings at a container level or at a pod level
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: security-context-demo
+spec:
+  securityContext:
+    runAsUser: 1000
+  containers:
+  - name: ubuntu
+    image: ubuntu
+    command: ["sleep", "3600"]
+```
+
+- To set the same configuration on the container level, move the section. Capabilities are only supported at the container level, not at the Pod level
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: security-context-demo
+spec:
+  containers:
+  - name: ubuntu
+    image: ubuntu
+    command: ["sleep", "3600"]
+    securityContext:
+      runAsUser: 1000
+      capabilities:
+        add: ["MAC_ADMIN"]
+```
+
+**Lab**
+
+```bash
+kubectl exec ubuntu-sleeper -- whoami
+
+kubectl delete po ubuntu-sleeper --force   # faster with force, only in lab/exam
+kubectl apply -f ubuntu-sleeper.yaml
+```
