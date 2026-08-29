@@ -2783,3 +2783,84 @@ kubens <new_namespace>
 # To switch back to previous namespace
 kubens -
 ```
+
+### Custom Resource Definition (CRD)
+
+```yaml
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: internals.datasets.kodekloud.com 
+spec:
+  group: datasets.kodekloud.com
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                internalLoad:
+                  type: string
+                range:
+                  type: integer
+                percentage:
+                  type: string
+  scope: Namespaced 
+  names:
+    plural: internals
+    singular: internal
+    kind: Internal
+    shortNames:
+    - int
+```
+
+- Operator Framework = CRD + Custom Controller 
+
+---
+
+## Storage
+
+### Docker Storage Drivers and File System
+
+```bash
+docker volume create data_volume 
+
+# mount 
+docker run -v data_volume:/var/lib/mysql <imgage eg. mysql> 
+
+# new way, preferred way 
+docker run \
+--mount type=bind, source=/data/mysql,target=/var/lib/mysql mysql
+
+```
+
+- Volume mount: mounts a volume from the volumes directory and bind mount: mounts a directory from any location
+
+- Who is responsible for all these operations we described above? 
+  - Docker uses storage drivers to enable layered architecture, some of the common storage drivers are:
+    - AUFS (ubuntu default)
+    - ZFS
+    - BTRFS
+    - Device Mapper
+    - Overlay
+    - Overlay2
+
+  - Docker will choose the best storage driver available automatically based on the operating system.
+
+
+### Container Storage Interface 
+
+- Container runtime interface is a standard that defines how an orchestration solution like kubernetes would communicate with container runtimes like Docker.
+
+- To extend support for different networking solutions, CNI- Container Networking Interface was introduced ( Calico, flannel, cilium etc)
+
+- CSI - Container Storage Interface was develped to support multiple storage solutions, we can write our own drivers to work with kubernetes eg: portworx, amazon EBS, Managed Disk, Dell EMC, GlusterFS.
+
+### Persistent Volumes 
+
