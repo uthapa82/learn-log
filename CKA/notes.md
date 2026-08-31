@@ -2864,3 +2864,179 @@ docker run \
 
 ### Persistent Volumes 
 
+---
+
+## Networking
+
+```bash
+ip link
+ip addr
+ip addr add 192.168.1.10/24 dev eth0
+ip route
+ip route add 192.168.1.0/24 via 192.168.2.1
+cat /proc/sys/net/ipv4/ip_forward
+echo 1 > /proc/sys/net/ipv4/ip_forward
+```
+
+- To persist, add to `/etc/sysctl.conf`:
+
+```text
+net.ipv4.ip_forward = 1
+```
+
+```bash
+cat /etc/resolv.conf
+nameserver 192.168.1.100   # DNS server ip's
+```
+
+- Order of lookup for DNS
+
+```bash
+cat /etc/nsswitch.conf
+...
+hosts: files dns   # files -> /etc/hosts then dns -> dns server
+...
+```
+
+- Being able to use short name, for eg: `web` instead of `web.mycompany.com`
+
+```bash
+cat >> /etc/resolv.conf
+nameserver 192.168.1.100
+search mycompany.com prod.mycompany.com
+...
+```
+
+- Record Types
+
+| Type | Name | Value |
+|---|---|---|
+| A | web-server | 192.168.1.1 |
+| AAAA | web-server | 2001:db8:85a3::8a2e:0370:7334 |
+| CNAME | food.web-server | eat.web-server, hungry.web-server |
+
+### Namespace
+
+```bash
+# create new network namespace
+ip netns add red
+ip netns add blue
+
+# list
+ip netns
+
+ip link
+
+# check the interface in the namespace
+ip netns exec red ip link
+
+# or
+ip -n red link
+
+# from host
+arp
+
+# inside container
+ip netns exec red arp
+
+# same for routing table
+route
+
+ip netns exec red route
+```
+
+- Connectivity between two namespaces and host, step 1: create a cable
+
+```bash
+ip link add veth-<namespace eg. red> type veth-<namespace eg. blue>
+
+# attach
+ip link set veth-red netns red
+ip link set veth-blue netns blue
+
+# assign ip address, if issue try adding NETMASK 192.168.15.1/24
+ip -n red addr add 192.168.15.1 dev veth-red
+ip -n blue addr add 192.168.15.2 dev veth-blue
+
+# bring interface up
+ip -n red link set veth-red up
+ip -n blue link set veth-blue up
+
+# ping
+ip netns exec red ping 192.168.15.2
+
+ip netns exec red arp
+# -> arp entry of blue
+
+ip netns exec blue arp
+# -> arp entry of red
+```
+
+- For two, creating manually was feasible, what if there's 4 namespaces? Create a virtual network inside our host — to create a network we need a switch. So to create a virtual network we need a virtual switch.
+
+- Multiple solutions available
+  - Linux Bridge
+  - OvS - Open vSwitch
+
+- Using Linux Bridge
+
+```bash
+ip link add <name eg. v-net-0> type bridge
+
+ip link set dev v-net-0 up
+
+# connect namespaces to the virtual switch
+# delete the link, one created before, deleting one end automatically deletes other end
+ip -n red link del veth-red
+
+# new cable for switch
+ip link add <name eg. veth-red> type veth peer name veth-red-br
+
+ip link add <name eg. veth-blue> type veth peer name veth-blue-br
+
+# now cables are ready, connect to the switch
+ip link set veth-red netns red
+ip link set veth-red-br master v-net-0
+
+# same for blue, one end to blue ns and other end to bridge network
+ip link set veth-blue netns blue
+ip link set veth-blue-br master v-net-0
+
+# set ip address, if issue try adding NETMASK 192.168.15.1/24
+ip -n red addr add 192.168.15.1 dev veth-red
+ip -n blue addr add 192.168.15.2 dev veth-blue
+
+# set link up, after that the containers can reach each other
+ip -n red link set veth-red up
+ip -n blue link set veth-blue up
+```
+
+- As of now the connectivity between the host and ns are not there, but if we want to establish that, our host will show bridge network as interface, we just need to assign the ip address similar to the containers and that would be it
+
+  `ip addr add 192.168.15.5/24 dev v-net-0`
+
+- Still now all the containers are accessible via the host only, they cannot reach outside public network. If they try to reach the ip outside of our host somewhere in LAN, since the routing table of that container cannot find that ip it will come back with "Network Unreachable". So we need to add an entry in the routing table to provide a gateway.
+
+  `ip netns exec blue ip route add 192.168.1.0/2 via 192.168.15.5`
+
+- Even after adding the default gateway we are not able to get response, that's due to the private network within our host, so for that we have to use NAT.
+
+  MASQUERADE -> Replace
+
+  `iptables -t nat -A POSTROUTING -s 192.168.15.0/24 -j MASQUERADE`
+
+- Similarly, let's say now we are able to reach LAN network, we try to reach Internet via LAN network, that would fail, as before there's no route in namespace routing table.
+
+  Add default gateway same as host, if our host can talk then it can talk
+
+  `ip netns exec blue ip route add default via 192.168.15.5`
+
+- How about connectivity from outside to inside, two options:
+  1. Give the identity of private network, i.e. add ip route (don't want to do that)
+  2. Add portforwarding rule using iptables in the host of the namespaces
+
+  `iptables -t nat -A PREROUTING -dport 80 --to-destination 192.168.15.2:80 -j DNAT`
+
+
+
+ 
