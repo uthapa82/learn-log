@@ -3038,5 +3038,20 @@ ip -n blue link set veth-blue up
   `iptables -t nat -A PREROUTING -dport 80 --to-destination 192.168.15.2:80 -j DNAT`
 
 
+**LAB**
+
+```bash
+# port kube-scheduler is listening on
+netstat -nplt | grep scheduler
+tcp        0      0 127.0.0.1:10259         0.0.0.0:*               LISTEN      3262/kube-scheduler
+
+# count which ports have more connections
+netstat -anp | grep etcd | grep 2380 | wc -l
+
+netstat -anp | grep etcd | grep 2379 | wc -l
+```
+
+- 2379 is the port of ETCD to which all control plane components connect to. 2380 is only for etcd peer-to-peer connectivity, when you have multiple controlplane nodes.
+
 
  
