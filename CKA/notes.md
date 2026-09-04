@@ -3053,5 +3053,37 @@ netstat -anp | grep etcd | grep 2379 | wc -l
 
 - 2379 is the port of ETCD to which all control plane components connect to. 2380 is only for etcd peer-to-peer connectivity, when you have multiple controlplane nodes.
 
+### Services 
 
- 
+```bash 
+kube-proxy --proxy-mode [userspace | iptables | ipvs] ...
+
+kube-api-server --service-cluster-ip-range ipNet (Default: 10.0.0.0/24)
+
+ps aux | grep kube-api-server
+
+iptables -L -t nat | grep db-service
+
+cat /var/log/kube-proxy.log
+
+# finding the ip range in cluster
+
+cat /etc/kubernetes/manifests/kube-controller-manager.yaml | grep "cluster-cidr"
+
+# finding the ip range for the services within the cluster 
+kubectl describe -n kube-system kube-api-server-xxx
+
+# or
+
+cat /etc/kuberentes/manifests/kube-apiserver.yaml | grep cluster-ip-range
+
+# determine the type of proxy configured to use 
+kubectl logs -n kube-system kube-proxy-492h9 
+
+kubectl get all --all-namespaces
+
+# DNS 
+kubectl exec -it hr -- nslookup mysql.payroll > /root/CKA/nslookup.out
+```
+
+
