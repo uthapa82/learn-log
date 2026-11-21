@@ -3086,4 +3086,15 @@ kubectl get all --all-namespaces
 kubectl exec -it hr -- nslookup mysql.payroll > /root/CKA/nslookup.out
 ```
 
+### Ingress - Lab
+
+```bash
+kubectl create ingress critical-ingress -n critical-space \
+  --rule="/pay=<service-name>:<port>" \
+  --annotation="nginx.ingress.kubernetes.io/rewrite-target=/" \
+  --dry-run=client -o yaml > critical-ing.yaml
+
+
+```
+
 
